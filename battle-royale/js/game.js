@@ -2,17 +2,19 @@
 'use strict';
 
 const QUALITY = {
-  low: { n: 'Économie', pr: 0.65, fog: 170, shadows: false, aa: false, blob: true },
-  medium: { n: 'Équilibré', pr: 1.0, fog: 260, shadows: false, aa: false, blob: true },
-  high: { n: 'Beau', pr: 1.5, fog: 380, shadows: true, aa: true, blob: false },
-  ultra: { n: 'Ultra', pr: 2, fog: 520, shadows: true, aa: true, blob: false },
+  low: { n: 'Économie', pr: 0.7, fog: 180, shadows: false, aa: false, blob: true, grass: 0, post: false, treeOl: false, smap: 0 },
+  medium: { n: 'Équilibré', pr: 1.0, fog: 280, shadows: false, aa: false, blob: true, grass: 2200, post: false, treeOl: false, smap: 0 },
+  high: { n: 'Beau', pr: 1.35, fog: 400, shadows: true, aa: false, blob: false, grass: 5000, post: true, treeOl: true, smap: 1024 },
+  ultra: { n: 'Ultra', pr: 2, fog: 540, shadows: true, aa: false, blob: false, grass: 9000, post: true, treeOl: true, smap: 2048 },
 };
 
+const _v1c = new THREE.Color();
 const Game = {
   phase: 'lobby', paused: false, time: 0, matchStart: 0, fighters: [], bots: [], player: null,
   loot: [], chests: [], karts: [], grenades: [], supplies: [], shotMarks: [],
   camPos: new THREE.Vector3(), camDir: new THREE.Vector3(0, 0, -1), camYaw: 0, camPitch: 0, shake: 0,
   aimTarget: null, interactable: null, chestHold: 0, spectating: null, matchStats: {}, dynScale: 1,
+  rockets: [], timeScale: 1, slowT: 0, victoryT: 0, reviveHold: 0, stormFlash: 0, heartT: 0, windT: 0,
   storm: { cx: 0, cz: 0, r: 480, nx: 0, nz: 0, nr: 480, phase: 0, timer: 60, shrinking: false },
 
   init() {
@@ -21,29 +23,29 @@ const Game = {
     const Q = QUALITY[this.quality];
     this.renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: Q.aa, powerPreference: 'high-performance', stencil: false, alpha: true });
     this.renderer.setClearColor(0xbfe6ff);
+    Look.init();
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(Settings.fov, 1, 0.1, 1500);
     this.hemi = new THREE.HemisphereLight(0xdff3ff, 0x6b8f4a, 0.75); this.scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight(0xfff2d6, 0.85); this.sun.position.set(80, 140, -60); this.scene.add(this.sun); this.scene.add(this.sun.target);
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.18));
+    this.amb = new THREE.AmbientLight(0xffffff, 0.18); this.scene.add(this.amb);
     this.scene.fog = new THREE.Fog(0xbfe6ff, 60, Q.fog);
     Models.init(); Effects.init(this.scene);
-    // tempête (mur)
-    const tc = document.createElement('canvas'); tc.width = 64; tc.height = 256; const tx = tc.getContext('2d');
-    const gr = tx.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(190,120,255,0)'); gr.addColorStop(0.5, 'rgba(160,80,255,.55)'); gr.addColorStop(1, 'rgba(110,40,220,.85)');
-    tx.fillStyle = gr; tx.fillRect(0, 0, 64, 256);
-    for (let i = 0; i < 12; i++) { tx.fillStyle = 'rgba(255,255,255,.12)'; tx.fillRect(Math.random() * 64, 0, 3, 256); }
-    this.stormTex = new THREE.CanvasTexture(tc); this.stormTex.wrapS = THREE.RepeatWrapping; this.stormTex.repeat.set(30, 1);
-    this.stormMesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 300, 64, 1, true), new THREE.MeshBasicMaterial({ map: this.stormTex, transparent: true, side: THREE.DoubleSide, depthWrite: false, fog: false }));
+    // tempête (mur animé)
+    this.stormMesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 300, 96, 1, true), Look.stormMat());
     this.stormMesh.position.y = 120; this.stormMesh.visible = false; this.scene.add(this.stormMesh);
     // anneaux de rareté (loot)
     this.ringGeo = new THREE.RingGeometry(0.35, 0.55, 16).rotateX(-Math.PI / 2);
     this.ringMats = RARITY.map(r => new THREE.MeshBasicMaterial({ color: r.c, transparent: true, opacity: 0.75, depthWrite: false }));
     this.beamGeo = new THREE.CylinderGeometry(0.06, 0.12, 3, 6, 1, true); this.beamGeo.translate(0, 1.5, 0);
     this.beamMats = RARITY.map(r => new THREE.MeshBasicMaterial({ color: r.c, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide }));
-    this.chestMat = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x553300 });
+    this.chestMat = Look.mat({ vertexColors: true, emissive: 0x553300 });
+    this.rocketGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.7, 8).rotateX(Math.PI / 2);
     this.lootGroup = new THREE.Group(); this.scene.add(this.lootGroup);
     this.dynGroup = new THREE.Group(); this.scene.add(this.dynGroup);
+    Post.init(this.renderer);
+    World.build(this.scene);
+    Look.applyTime('sunset');
     this.applyQuality();
     window.addEventListener('resize', () => this.resize()); this.resize();
     this.last = performance.now(); this.fpsAcc = 0; this.fpsN = 0; this.lowFpsT = 0;
@@ -60,24 +62,34 @@ const Game = {
     this.renderer.setPixelRatio(this.pr);
     this.scene.fog.far = Q.fog; this.scene.fog.near = Q.fog * 0.3; this.camera.far = Q.fog + 1100;
     this.camera.updateProjectionMatrix();
-    this.renderer.shadowMap.enabled = Q.shadows;
-    this.sun.castShadow = Q.shadows;
-    if (Q.shadows) { this.sun.shadow.mapSize.set(1024, 1024); const c = this.sun.shadow.camera; c.left = -45; c.right = 45; c.top = 45; c.bottom = -45; c.near = 1; c.far = 400; c.updateProjectionMatrix(); this.sun.shadow.bias = -0.0015; }
-    this.renderer.shadowMap.needsUpdate = true;
-    if (this.scene) this.scene.traverse(o => { if (o.material && o.material.needsUpdate !== undefined) o.material.needsUpdate = true; });
+    if (this.shadowsOn !== Q.shadows || this.smap !== Q.smap) {
+      this.renderer.shadowMap.enabled = Q.shadows; this.sun.castShadow = Q.shadows;
+      if (Q.shadows) {
+        if (this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; }
+        this.sun.shadow.mapSize.set(Q.smap, Q.smap); const c = this.sun.shadow.camera; c.left = -50; c.right = 50; c.top = 50; c.bottom = -50; c.near = 1; c.far = 500; c.updateProjectionMatrix(); this.sun.shadow.bias = -0.0012;
+      }
+      if (this.shadowsOn !== undefined) this.scene.traverse(o => { if (o.material && o.material.needsUpdate !== undefined && !o.material.isShaderMaterial) o.material.needsUpdate = true; });
+      this.shadowsOn = Q.shadows; this.smap = Q.smap;
+    }
+    if (this.grassN !== Q.grass) { this.grassN = Q.grass; Look.grass(this.scene, Q.grass); }
+    if (World.outl) { for (const o of World.outl.tree) o.visible = Q.treeOl; }
+    this.postOn = Q.post && Post.ok;
     this.resize();
   },
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
     this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
+    Post.setSize(w, h, this.pr || 1);
     document.documentElement.style.setProperty('--hud', Settings.hudScale * Math.min(1.15, Math.max(0.7, Math.min(w, h) / 420)));
   },
 
   // ---------------- démarrage d'une partie ----------------
   startMatch(modeId) {
     this.mode = MODES[modeId]; this.modeId = modeId; this.botLevel = BOT_LEVELS[Settings.botLevel] || BOT_LEVELS.normal;
-    World.build(this.scene);
     this.cleanup();
+    let tod = Settings.timeOfDay;
+    if (tod === 'random') { const r = Math.random(); tod = r < 0.3 ? 'day' : r < 0.55 ? 'morning' : r < 0.85 ? 'sunset' : 'night'; }
+    Look.applyTime(tod); this.applyQuality(); this.stormMix = 0; this._stormFog = true; this.timeScale = 1; this.slowT = 0; this.victoryT = 0; this.reviveHold = 0;
     this.phase = 'bus'; this.time = 0; this.matchStart = 0; this.paused = false; this.spectating = null; this.ended = false;
     this.matchStats = { kills: 0, chests: 0, damage: 0, heal: 0, head: 0, sniperk: 0, shotgunk: 0, drive: 0 };
     this.landedAt = null;
@@ -115,7 +127,7 @@ const Game = {
     }
     // coéquipier en duo : saute avec le joueur
     this.camYaw = this.busMesh.rotation.y; this.camPitch = -0.25;
-    HUD.reset(); Input.resetAll();
+    HUD.reset(); Input.resetAll(); document.body.classList.remove('victory', 'lowhp', 'knocked');
     HUD.message('Le Bus Volant décolle ! Appuie sur <b>SAUTER</b> au-dessus de ta zone', 4);
     document.body.classList.add('ingame');
     Sfx.stopMusic();
@@ -126,6 +138,8 @@ const Game = {
     for (const c of this.chests) this.lootGroup.remove(c.mesh);
     for (const k of this.karts) this.dynGroup.remove(k.mesh);
     for (const g of this.grenades) this.dynGroup.remove(g.mesh);
+    for (const r of this.rockets) this.dynGroup.remove(r.mesh);
+    this.rockets = [];
     for (const s of this.supplies) { this.dynGroup.remove(s.mesh); if (s.smoke) this.dynGroup.remove(s.smoke); }
     this.fighters = []; this.bots = []; this.loot = []; this.chests = []; this.karts = []; this.grenades = []; this.supplies = []; this.shotMarks = [];
   },
@@ -155,7 +169,7 @@ const Game = {
     this.lootGroup.add(g); this.loot.push(it); return it;
   },
   rollWeapon(minR, bonus) {
-    const w = pick(FLOOR_WEAPONS); const W = WEAPONS[w];
+    let w = pick(FLOOR_WEAPONS); if (w === 'rocket' && Math.random() < 0.55 && !minR) w = 'ar'; const W = WEAPONS[w];
     const rar = clamp(rollRarity(Math.max(W.min, minR || 0), W.max, bonus || 0), W.min, W.max);
     return { kind: 'weapon', w, rar, mag: W.mag };
   },
@@ -253,20 +267,38 @@ const Game = {
     it.n--; if (it.n <= 0) f.slots[f.cur] = null;
     f.fireT = 0.6;
   },
-  explode(g) {
+  fireRocket(f, from, dir, rar) {
+    const m = new THREE.Mesh(this.rocketGeo, Models.mat); m.position.copy(from); this.dynGroup.add(m);
+    this.rockets.push({ pos: from.clone(), vel: dir.clone().multiplyScalar(62), owner: f, mesh: m, life: 5, rar });
+  },
+  updateRockets(dt) {
+    for (let i = this.rockets.length - 1; i >= 0; i--) {
+      const r = this.rockets[i]; r.life -= dt;
+      const L = r.vel.length() * dt; const d = _v2.copy(r.vel).normalize();
+      let hit = World.ray(r.pos.x, r.pos.y, r.pos.z, d.x, d.y, d.z, L + 0.3);
+      let boom = hit < L + 0.3 || r.life <= 0;
+      if (!boom) for (const f of this.fighters) { if (!f.alive || f === r.owner || f.team === r.owner.team || f.state === 'bus') continue; if (Math.hypot(f.pos.x - r.pos.x, f.pos.y + 1 - r.pos.y, f.pos.z - r.pos.z) < 1.3) { boom = true; hit = 0; break; } }
+      if (boom) { r.pos.addScaledVector(d, Math.min(hit, L)); this.explode({ pos: r.pos, owner: r.owner }, 6.5, 100 * RARITY[r.rar].m, 'rocket'); this.dynGroup.remove(r.mesh); this.rockets.splice(i, 1); continue; }
+      r.pos.addScaledVector(r.vel, dt); r.mesh.position.copy(r.pos); r.mesh.lookAt(_v3.copy(r.pos).add(r.vel));
+      if (dist2(r.pos.x, r.pos.z, this.camPos.x, this.camPos.z) < 120 * 120) Effects.trail(r.pos);
+    }
+  },
+  explode(g, R, base, wtype) {
+    R = R || 7.5; base = base || 95; wtype = wtype || 'grenade';
     Effects.boom(g.pos); Sfx.boom(g.pos.distanceTo(this.camPos));
     if (Settings.camShake && g.pos.distanceTo(this.player.pos) < 30) this.shake = 0.6;
     for (const f of this.fighters) {
       if (!f.alive || f.state === 'bus') continue; if (f.team === g.owner.team && f !== g.owner) continue;
-      const d = Math.hypot(f.pos.x - g.pos.x, f.pos.y + 1 - g.pos.y, f.pos.z - g.pos.z); if (d > 7.5) continue;
-      if (!World.los(g.pos, _v1.set(f.pos.x, f.pos.y + 1, f.pos.z))) continue;
-      const dmg = Math.round(95 * Math.pow(1 - d / 7.5, 0.7) * (f === g.owner ? 0.5 : 1));
-      applyDamage(f, dmg, g.owner, false, 'grenade', _v1.clone());
+      const d = Math.hypot(f.pos.x - g.pos.x, f.pos.y + 1 - g.pos.y, f.pos.z - g.pos.z); if (d > R) continue;
+      if (!World.los(g.pos, _v1.set(f.pos.x, f.pos.y + 1, f.pos.z)) && d > 1.5) continue;
+      const dmg = Math.round(base * Math.pow(1 - d / R, 0.6) * (f === g.owner ? 0.5 : 1));
+      applyDamage(f, dmg, g.owner, false, wtype, _v1.clone());
+      if (f.state === 'ground' && !f.kart && !f.knocked) { const k = (1 - d / R) * 9; f.vel.x += (f.pos.x - g.pos.x) / (d + 0.1) * k; f.vel.z += (f.pos.z - g.pos.z) / (d + 0.1) * k; f.vy = Math.max(f.vy, k * 0.7); f.onGround = false; }
     }
     for (const k of this.karts) if (k.pos.distanceTo(g.pos) < 6) k.speed *= 0.2;
   },
   useItem(f) {
-    const it = f.item; if (!it || it.kind !== 'cons' || f.using) return;
+    const it = f.item; if (!it || it.kind !== 'cons' || f.using || f.knocked) return;
     const C = CONS[it.c];
     if (C.throw) { if (f.fireT <= 0) this.throwGrenade(f); return; }
     const hpOk = C.hp && f.hp < C.cap, shOk = C.sh && f.sh < C.shcap;
@@ -291,7 +323,7 @@ const Game = {
     return -1;
   },
   noise(f, radius) {
-    if (dist2(f.pos.x, f.pos.z, this.player.pos.x, this.player.pos.z) < 140 * 140 && f !== this.player) this.shotMarks.push({ x: f.pos.x, z: f.pos.z, t: this.time });
+    if (dist2(f.pos.x, f.pos.z, this.player.pos.x, this.player.pos.z) < 140 * 140 && f !== this.player) { this.shotMarks.push({ x: f.pos.x, z: f.pos.z, t: this.time }); if (Settings.soundViz && f.team !== this.playerTeam && dist2(f.pos.x, f.pos.z, this.player.pos.x, this.player.pos.z) < 90 * 90) HUD.soundAt(f.pos, 'shot'); }
     if (this.shotMarks.length > 30) this.shotMarks.shift();
     for (const b of this.bots) {
       if (!b.alive || b === f || b.team === f.team || b.ai.target) continue;
@@ -330,11 +362,19 @@ const Game = {
       this.placement = teams + 1; setTimeout(() => this.endMatch(false), 1500);
     }
     if (this.spectating && !this.spectating.alive) this.spectating = att && att.alive ? att : this.fighters.find(f => f.alive) || null;
-    if (teams <= 1 && pTeamAlive) { this.placement = 1; setTimeout(() => this.endMatch(true), 1200); }
+    if (teams <= 1 && pTeamAlive) { this.placement = 1; this.startVictory(); }
     else if (teams <= 1 && !this.ended && !this.placement) { this.placement = 2; setTimeout(() => this.endMatch(false), 1200); }
     if (!t.isPlayer && t.team === this.playerTeam && this.player.alive) HUD.message('Ton coéquipier a été éliminé !', 2.5, 'bad');
     const left = this.aliveCount();
     if (this.player.alive && [25, 10, 5, 3, 2].includes(left)) HUD.message(`<b>${left}</b> joueurs restants`, 2);
+  },
+  startVictory() {
+    this.slowT = 1.6; this.timeScale = 0.25; this.victoryT = 0.001; document.body.classList.add('victory');
+    const p = this.player; p.emoteT = 99; p.knocked = false; p.ads = false;
+    HUD.message('<b>VICTOIRE !</b>', 3, 'poi');
+    Sfx.win(); Confetti.start();
+    setTimeout(() => { Effects.confettiBurst(_v1.set(p.pos.x, p.pos.y + 3, p.pos.z)); }, 600);
+    setTimeout(() => this.endMatch(true), 4200);
   },
   endMatch(win) {
     if (this.ended) return; this.ended = true; this.phase = 'end';
@@ -342,7 +382,7 @@ const Game = {
     const p = this.player; const place = win ? 1 : (this.placement || this.aliveTeams() + 1);
     const survived = ((p.alive ? this.time : this.deathTime) - this.matchStart) / 60;
     // XP
-    const xp = { kills: p.kills * 60, survie: Math.round(Math.max(0, survived) * 25), place: place === 1 ? 400 : place <= 5 ? 180 : place <= 10 ? 110 : place <= 25 ? 50 : 0, coffres: this.matchStats.chests * 10, dégâts: Math.round(this.matchStats.damage / 20) };
+    const xp = { 'éliminations': p.kills * 60, survie: Math.round(Math.max(0, survived) * 25), place: place === 1 ? 400 : place <= 5 ? 180 : place <= 10 ? 110 : place <= 25 ? 50 : 0, coffres: this.matchStats.chests * 10, dégâts: Math.round(this.matchStats.damage / 20) };
     // stats
     const S = Profile.stats; S.games++; S.kills += p.kills; S.damage += Math.round(this.matchStats.damage); S.headshots += this.matchStats.head || 0;
     S.timeAlive += Math.max(0, survived); if (win) S.wins++; else S.deaths++; if (place <= 10) S.top10++; S.bestKills = Math.max(S.bestKills, p.kills);
@@ -356,12 +396,11 @@ const Game = {
     while (Profile.xp >= XP_FOR(Profile.lvl)) { Profile.xp -= XP_FOR(Profile.lvl); Profile.lvl++; }
     Profile.history.unshift({ d: Date.now(), mode: this.modeId, place, kills: p.kills, dmg: Math.round(this.matchStats.damage) }); Profile.history = Profile.history.slice(0, 20);
     saveProfile();
-    if (win) Sfx.win();
     UI.showEnd({ win, place, kills: p.kills, dmg: Math.round(this.matchStats.damage), survived, xp, total, lvlUp: Profile.lvl > before, lvl: Profile.lvl, done, players: this.mode.players, teams: this.mode.team });
   },
   quitToLobby() {
     this.phase = 'lobby'; this.ended = true; this.cleanup(); this.stormMesh.visible = false; if (this.busMesh) this.busMesh.visible = false;
-    document.body.classList.remove('ingame', 'air', 'driving', 'dead'); Input.resetAll();
+    document.body.classList.remove('ingame', 'air', 'driving', 'dead', 'victory', 'lowhp', 'knocked'); Input.resetAll();
     if (document.pointerLockElement) document.exitPointerLock();
     UI.showLobby();
   },
@@ -388,6 +427,8 @@ const Game = {
     this.render(dt);
   },
   update(dt) {
+    if (this.slowT > 0) { this.slowT -= dt; if (this.slowT <= 0) this.timeScale = 1; }
+    dt *= this.timeScale;
     this.time += dt;
     Input.readKeys();
     this.updateStorm(dt);
@@ -397,9 +438,41 @@ const Game = {
     for (const f of this.fighters) if (f.alive) this.stepFighter(f, dt);
     this.updateKarts(dt);
     this.updateGrenades(dt);
+    this.updateRockets(dt);
+    this.updatePads(dt);
+    this.updateKnocked(dt);
     this.updateSupplies(dt);
     this.updateLootVis(dt);
     Effects.update(dt);
+  },
+  updatePads(dt) {
+    for (const f of this.fighters) {
+      if (!f.alive || f.state !== 'ground' || f.kart || f.knocked) continue;
+      if (f.padT > 0) { f.padT -= dt; continue; }
+      for (const p of World.pads) {
+        if (dist2(f.pos.x, f.pos.z, p.x, p.z) < 1.9 * 1.9 && f.pos.y < p.y + 2) {
+          f.state = 'fall'; f.vy = 30; f.padT = 1.5; f.onGround = false; f.parts.glider.visible = false; f.crouch = false; f.slideT = 0;
+          f.vel.x *= 0.5; f.vel.z *= 0.5;
+          if (f.ai) f.ai.landing = f.ai.goal ? { x: f.ai.goal.x, z: f.ai.goal.z } : f.ai.pickLanding();
+          if (dist2(p.x, p.z, this.camPos.x, this.camPos.z) < 60 * 60) Sfx.bounce();
+          Effects.burst(_v1.set(p.x, p.y + 1.2, p.z), '#ff3d6e', 10, 6, 0.5, 1.2);
+          break;
+        }
+      }
+    }
+  },
+  updateKnocked(dt) {
+    for (const f of this.fighters) {
+      if (!f.alive || !f.knocked) continue;
+      f.bleed -= dt * 5.5; f.crouch = false;
+      if (f.bleed <= 0) { eliminate(f, f.lastHitBy, 'bleed', false); continue; }
+      // réanimation par un coéquipier
+      const mate = this.duoMateOf(f);
+      let revRate = 0;
+      if (mate && mate.alive && !mate.knocked && mate.reviving === f && dist2(mate.pos.x, mate.pos.z, f.pos.x, f.pos.z) < 2.6 * 2.6) revRate = 1;
+      f.reviveT = revRate ? f.reviveT + dt : Math.max(0, f.reviveT - dt);
+      if (f.reviveT >= 4) { revive(f); if (mate) mate.reviving = null; }
+    }
   },
   updateBus(dt) {
     const B = this.bus; B.t += dt / B.dur;
@@ -431,8 +504,9 @@ const Game = {
       }
     }
     st.dps = STORM_PHASES[Math.min(st.phase, STORM_PHASES.length - 1)].dps;
-    this.stormMesh.visible = st.r < World.ISL + 20; this.stormMesh.position.set(st.cx, 120, st.cz); this.stormMesh.scale.set(Math.max(0.1, st.r), 1, Math.max(0.1, st.r));
-    this.stormTex.offset.x += dt * 0.02;
+    this.stormMesh.visible = st.r < World.ISL + 20;
+    if (st.shrinking && Math.random() < dt * 0.25) { this.stormFlash = 1; if (this.player.inStorm || Math.random() < 0.3) setTimeout(() => Sfx.thunder(), 200 + Math.random() * 600); }
+    this.stormFlash = Math.max(0, this.stormFlash - dt * 3); Look.stormM.uniforms.flash.value = this.stormFlash * 0.6; this.stormMesh.position.set(st.cx, 120, st.cz); this.stormMesh.scale.set(Math.max(0.1, st.r), 1, Math.max(0.1, st.r));
     // dégâts
     this.stormTick = (this.stormTick || 0) + dt;
     const tick = this.stormTick >= 1; if (tick) this.stormTick = 0;
@@ -485,9 +559,14 @@ const Game = {
     p.ads = (I.ads || I.adsTouch) && !!W && p.reloadT <= 0;
     const firing = I.fire || (Settings.autoFire && this.aimTarget && this.aimAuto);
     const sprint = (Settings.sprintAuto && mag > 0.95 && I.jy > 0.75 && !firing && !p.ads && !p.crouch && !p.using) || (I.sprinting && !firing);
-    inp.speed = p.using ? 3.4 : p.ads ? 3.8 : p.crouch ? 3.2 : sprint ? 8.4 : 6.3;
-    if (I.consume('jump')) { if (p.crouch) p.crouch = false; else inp.jump = true; }
-    if (I.consume('crouch')) p.crouch = !p.crouch;
+    p.sprinting = sprint && p.onGround;
+    inp.speed = p.knocked ? 1.8 : p.reviving ? 0 : p.using ? 3.4 : p.ads ? 3.8 : p.crouch ? 3.2 : sprint ? 8.4 : 6.3;
+    if (p.knocked) { p.ads = false; this.updateInteract(p, dt); this.consumeAll(); return; }
+    if (I.consume('jump')) { if (p.crouch) p.crouch = false; else inp.jump = true; p.slideT = 0; }
+    if (I.consume('crouch')) {
+      if (p.sprinting && p.slideT <= 0 && Math.hypot(p.vel.x, p.vel.z) > 6.5) { p.slideT = 0.85; p.crouch = true; const l = Math.hypot(p.vel.x, p.vel.z); p.slideDir = { x: p.vel.x / l, z: p.vel.z / l }; Sfx.noise(0.5, 900, 0.18, 'bandpass', 0.8); }
+      else { p.crouch = !p.crouch; p.slideT = 0; }
+    }
     if (I.consume('reload')) startReload(p);
     if (I.consume('emote')) { p.emoteT = 3; }
     if (I.consume('heal')) { const i = this.bestHealSlot(p); if (i >= 0) { p.cur = i; p.switchT = 0.1; p.reloadT = 0; this.useItem(p); } else HUD.message('Aucun soin utile', 1.2); }
@@ -545,7 +624,15 @@ const Game = {
     const containers = this.chests.concat(this.supplies.filter(s => s.landed));
     for (const c of containers) { if (c.open) continue; const d = dist2(p.pos.x, p.pos.z, c.pos.x, c.pos.z); if (d < bd + 1) { bd = d; best = c; label = c.isSupply ? '<small>maintenir</small>Ouvrir le ravitaillement' : '<small>maintenir</small>Ouvrir le coffre'; } }
     for (const k of this.karts) { if (k.driver) continue; const d = dist2(p.pos.x, p.pos.z, k.pos.x, k.pos.z); if (d < bd + 4) { bd = d; best = k; label = '<small>véhicule</small>Conduire le kart'; } }
+    const mate = this.duoMateOf(p);
+    if (p.knocked) best = null;
+    if (mate && mate.alive && mate.knocked && !p.knocked && dist2(p.pos.x, p.pos.z, mate.pos.x, mate.pos.z) < 2.6 * 2.6) { best = { isRevive: true, f: mate }; label = '<small>maintenir</small>Réanimer ' + mate.name; }
     this.interactable = best ? { ref: best, label } : null;
+    if (best && best.isRevive) {
+      p.reviving = I.held.interact ? best.f : null; this.reviveHold = best.f.reviveT;
+      I.pressed.interact = false; this.chestHold = 0; return;
+    }
+    p.reviving = null; this.reviveHold = 0;
     if (best && best.isChest) {
       if (I.held.interact) { this.chestHold += dt; if (this.chestHold >= 0.7) { this.openChest(best, p); this.chestHold = 0; I.held.interact = false; } }
       else this.chestHold = 0;
@@ -652,14 +739,15 @@ const Game = {
     if (f.state === 'fall' || f.state === 'glide') {
       const gl = f.state === 'glide';
       const hs = gl ? 15 : 17;
+      if (f.isPlayer) { this.windT -= dt; if (this.windT <= 0) { this.windT = 0.22; Sfx.wind(gl ? 0.3 : 1); } }
       const dive = f.isPlayer && !gl && this.camPitch < -0.7;
       f.vel.x = lerp(f.vel.x, inp.dx * hs * (dive ? 0.7 : 1), 1 - Math.exp(-3 * dt)); f.vel.z = lerp(f.vel.z, inp.dz * hs * (dive ? 0.7 : 1), 1 - Math.exp(-3 * dt));
-      const tv = gl ? -7 : dive ? -42 : -24; f.vy = lerp(f.vy, tv, 1 - Math.exp(-2 * dt));
+      const tv = gl ? -7 : dive ? -42 : -24; f.vy = f.vy > 0 ? f.vy - 26 * dt : lerp(f.vy, tv, 1 - Math.exp(-2 * dt));
       f.pos.x += f.vel.x * dt; f.pos.z += f.vel.z * dt; f.pos.y += f.vy * dt;
       const r = Math.hypot(f.pos.x, f.pos.z); const RM = World.ISL - 50; if (r > RM) { f.pos.x = lerp(f.pos.x, f.pos.x * RM / r, 1 - Math.exp(-2 * dt)); f.pos.z = lerp(f.pos.z, f.pos.z * RM / r, 1 - Math.exp(-2 * dt)); }
       const gy = World.ground(f.pos.x, f.pos.z, f.pos.y);
-      if (!gl && f.pos.y - gy < 38) this.deployGlider(f);
-      if (f.pos.y <= gy) {
+      if (!gl && f.vy < 0 && f.pos.y - gy < (f.padT > 0 ? 9 : 38)) this.deployGlider(f);
+      if (f.pos.y <= gy && f.vy <= 0) {
         f.pos.y = gy; f.state = 'ground'; f.parts.glider.visible = false; f.vy = 0; f.onGround = true;
         if (f.isPlayer) { this.landedAt = World.nearPoi(f.pos.x, f.pos.z, 0); this.matchStart = this.matchStart || this.time; if (this.landedAt) HUD.message(this.landedAt.n.toUpperCase(), 2.5, 'poi'); }
         if (f.ai) { f.ai.thinkT = 0; }
@@ -668,9 +756,15 @@ const Game = {
     }
     if (f.kart) { this.animate(f, dt); return; }
     // au sol
-    const sp = inp.speed;
+    let sp = f.knocked ? 1.8 : inp.speed;
     const k = f.onGround ? 1 - Math.exp(-14 * dt) : 1 - Math.exp(-2.5 * dt);
-    f.vel.x = lerp(f.vel.x, inp.dx * sp, k); f.vel.z = lerp(f.vel.z, inp.dz * sp, k);
+    if (f.slideT > 0 && f.slideDir) {
+      f.slideT -= dt; const v = 6 + 9 * (f.slideT / 0.85);
+      f.vel.x = lerp(f.vel.x, f.slideDir.x * v + inp.dx * 1.5, k); f.vel.z = lerp(f.vel.z, f.slideDir.z * v + inp.dz * 1.5, k);
+      if (f.isPlayer && Math.random() < 0.5) Effects.burst(_v1.set(f.pos.x, f.pos.y + 0.1, f.pos.z), '#e8dcc0', 1, 2, 0.4, 0.4);
+    } else {
+      f.vel.x = lerp(f.vel.x, inp.dx * sp, k); f.vel.z = lerp(f.vel.z, inp.dz * sp, k);
+    }
     const ox = f.pos.x, oz = f.pos.z;
     f.pos.x += f.vel.x * dt; f.pos.z += f.vel.z * dt;
     World.collide(f.pos, 0.42, f.crouch ? 1.3 : 1.85);
@@ -685,7 +779,7 @@ const Game = {
     else f.onGround = false;
     if (f.pos.y < -0.6) { f.vel.x *= 0.85; f.vel.z *= 0.85; } // eau peu profonde = ralentit
     const hsp = Math.hypot(f.vel.x, f.vel.z); f.moveAmt = hsp / 6.3;
-    if (f.isPlayer && f.onGround && hsp > 2) { f.stepT = (f.stepT || 0) + dt * hsp; if (f.stepT > 3.4) { f.stepT = 0; Sfx.step(); } }
+    if (f.onGround && hsp > 2 && !f.crouch) { f.stepT = (f.stepT || 0) + dt * hsp; if (f.stepT > 3.4) { f.stepT = 0; if (f.isPlayer) Sfx.step(); else if (f.team !== this.playerTeam) { const d = Math.sqrt(dist2(f.pos.x, f.pos.z, this.player.pos.x, this.player.pos.z)); if (d < 22) { if (Settings.soundViz) HUD.soundAt(f.pos, 'step'); Sfx.noise(0.05, 260, 0.08 * (1 - d / 22)); } } } }
     this.animate(f, dt);
   },
   animate(f, dt) {
@@ -696,10 +790,18 @@ const Game = {
     m.visible = f.alive && f.state !== 'bus' && d2 < far * far && !scoped;
     if (!m.visible) return;
     m.position.copy(f.pos); m.rotation.y = f.yaw;
+    const near = d2 < 55 * 55;
+    if (f.outl.length && f.outl[0].visible !== near) for (const o of f.outl) o.visible = near;
+    if (f.flashT > 0) { f.flashT -= dt; const k = Math.max(0, f.flashT / 0.12); f.mat.emissive.setRGB(k, k * 0.9, k * 0.9); } else if (f.mat.emissive.r) f.mat.emissive.setRGB(0, 0, 0);
+    if (f.kick > 0) f.kick = Math.max(0, f.kick - dt * 4);
+    P.body.rotation.z = 0; m.rotation.x = 0;
     const hsp = f.moveAmt; f.walk += dt * hsp * 10;
     const sw = Math.sin(f.walk) * 0.7 * Math.min(1, hsp);
     if (f.state === 'glide' || f.state === 'fall') {
       P.legL.rotation.x = 0.3; P.legR.rotation.x = -0.2; P.arms.rotation.x = f.state === 'glide' ? 2.6 : 1.2; P.body.position.y = 0; P.body.rotation.x = f.state === 'fall' ? -0.5 : 0;
+    } else if (f.knocked) {
+      m.rotation.x = 0; P.body.rotation.x = -1.25; P.body.position.y = -0.75; P.legL.position.y = P.legR.position.y = 0.2;
+      P.legL.rotation.x = -1.4 + sw * 0.4; P.legR.rotation.x = -1.4 - sw * 0.4; P.arms.position.y = 0.45; P.arms.rotation.x = 0.4 + sw * 0.4;
     } else if (f.kart) {
       P.legL.rotation.x = -1.3; P.legR.rotation.x = -1.3; P.body.position.y = -0.4; P.arms.rotation.x = -0.2; P.body.rotation.x = 0; P.legL.position.y = P.legR.position.y = 0.38;
       m.rotation.y = f.kart.yaw; m.position.y += 0.15;
@@ -709,7 +811,8 @@ const Game = {
       P.body.position.y = f.crouch ? -0.35 : Math.abs(Math.sin(f.walk)) * 0.05 * Math.min(1, hsp);
       P.body.rotation.x = f.crouch ? -0.15 : 0;
       P.arms.position.y = 1.38 + P.body.position.y;
-      P.arms.rotation.x = f.using ? -0.6 : f.reloadT > 0 ? -0.5 + Math.sin(this.time * 12) * 0.1 : f.pitch * 0.8;
+      P.arms.rotation.x = (f.using || f.reviving ? -0.6 : f.reloadT > 0 ? -0.5 + Math.sin(this.time * 12) * 0.1 : f.pitch * 0.8) + f.kick;
+      if (f.slideT > 0) { P.body.rotation.x = 0.45; P.body.position.y = -0.55; P.legL.rotation.x = -1.3; P.legR.rotation.x = -1.0; P.legL.position.y = P.legR.position.y = 0.4; P.arms.position.y = 0.85; }
       if (f.emoteT > 0) { P.body.position.y = Math.abs(Math.sin(this.time * 9)) * 0.35; P.arms.rotation.x = Math.sin(this.time * 9) * 1.2 + 1.5; m.rotation.y = f.yaw + this.time * 4; }
     }
     P.sh.visible = QUALITY[this.quality].blob && d2 < 50 * 50;
@@ -726,15 +829,24 @@ const Game = {
     const fwd = this.camDir.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
     const right = _v3.set(Math.cos(yaw), 0, -Math.sin(yaw));
     let target, back, side, up;
+    if (this.victoryT > 0) {
+      this.victoryT += dt; const a = this.victoryT * 0.6 + p.yaw;
+      const tgt = _v1.set(p.pos.x, p.pos.y + 1.2, p.pos.z);
+      cam.position.set(p.pos.x + Math.sin(a) * 5.5, p.pos.y + 2.4, p.pos.z + Math.cos(a) * 5.5);
+      cam.lookAt(tgt); this.camPos.copy(cam.position); cam.fov = lerp(cam.fov, 50, 0.05); cam.updateProjectionMatrix();
+      World.roofMesh.visible = true; World.sky.position.set(cam.position.x, 0, cam.position.z);
+      this.sun.position.set(p.pos.x + Look.sunOff.x, p.pos.y + Look.sunOff.y, p.pos.z + Look.sunOff.z); this.sun.target.position.copy(p.pos);
+      return;
+    }
     if (v.state === 'bus' && this.busPos) { target = this.busPos.clone(); back = 22; side = 0; up = 4; }
     else {
-      const crouch = v.crouch ? -0.45 : 0;
+      const crouch = v.knocked ? -1.0 : v.slideT > 0 ? -0.7 : v.crouch ? -0.45 : 0;
       target = new THREE.Vector3(v.pos.x, v.pos.y + 1.6 + crouch + (v.kart ? 0.6 : 0), v.pos.z);
       const air = v.state === 'fall' || v.state === 'glide';
       const ads = v === p && p.ads; const W = p.weapon ? WEAPONS[p.weapon.w] : null;
       back = air ? 7 : v.kart ? 7.5 : ads ? (W && W.scope ? 0.3 : 1.8) : 3.6;
       side = air || v.kart ? 0 : ads ? 0.6 : 1.05; up = air ? 1 : v.kart ? 1.2 : 0.4;
-      const tf = ads && W ? Settings.fov / W.zoom : Settings.fov + (v.moveAmt > 1.15 ? 6 : 0);
+      const tf = ads && W ? Settings.fov / W.zoom : Settings.fov + (v.slideT > 0 ? 12 : v.moveAmt > 1.15 ? 7 : 0) + (v.kick || 0) * 4;
       cam.fov = lerp(cam.fov, tf, 1 - Math.exp(-14 * dt)); cam.updateProjectionMatrix();
     }
     this.curBack = lerp(this.curBack || back, back, 1 - Math.exp(-12 * dt));
@@ -754,13 +866,24 @@ const Game = {
     const inside = v.state === 'ground' && World.inBuilding(v.pos.x, v.pos.z);
     World.roofMesh.visible = !inside;
     // soleil / ombres suivent le joueur
-    this.sun.position.set(v.pos.x + 80, v.pos.y + 140, v.pos.z - 60); this.sun.target.position.set(v.pos.x, v.pos.y, v.pos.z);
+    const so = Look.sunOff; this.sun.position.set(v.pos.x + so.x, v.pos.y + so.y, v.pos.z + so.z); this.sun.target.position.set(v.pos.x, v.pos.y, v.pos.z);
     World.sky.position.set(want.x, 0, want.z);
+    // brouillard violet dans la tempête
+    this.stormMix = lerp(this.stormMix || 0, v.inStorm && v.alive ? 1 : 0, 1 - Math.exp(-3 * dt));
+    if (this.stormMix > 0.001 || this._stormFog) { this.scene.fog.color.copy(Look.fogBase).lerp(_v1c.set('#7b2ff7'), this.stormMix * 0.75); this.scene.fog.near = lerp(QUALITY[this.quality].fog * 0.3, 8, this.stormMix); this.scene.fog.far = lerp(QUALITY[this.quality].fog, 90, this.stormMix); this._stormFog = this.stormMix > 0.001; }
   },
   render(dt) {
     this.updateCamera(dt);
+    Look.update(this.paused ? 0 : dt, this.camPos);
     HUD.update(dt);
-    this.renderer.render(this.scene, this.camera);
+    // battement de cœur quand la santé est basse
+    const p = this.player;
+    if (p && p.alive && (p.hp < 30 || p.knocked) && !this.paused) { this.heartT -= dt; if (this.heartT <= 0) { this.heartT = 0.95; Sfx.heart(); } }
+    this.renderScene();
+  },
+  renderScene() {
+    if (this.postOn) Post.render(this.scene, this.camera, Look.time, this.stormMix || 0);
+    else this.renderer.render(this.scene, this.camera);
   },
   _proj: new THREE.Vector3(),
   project(p) {

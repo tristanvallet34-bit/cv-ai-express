@@ -12,6 +12,19 @@ cd battle-royale && python3 -m http.server 8000
 Sur téléphone : menu du navigateur → « Ajouter à l'écran d'accueil » pour l'avoir comme une appli plein écran.
 Fonctionne aussi tel quel sur GitHub Pages.
 
+## Nouveautés v2 — rendu « dessin animé » et gameplay
+- **Cel-shading** (ombrage en aplats), **contours noirs** sur personnages, bâtiments, arbres et rochers
+- **Post-traitement** (qualité Beau/Ultra) : bloom, étalonnage des couleurs, vignette, anti-crénelage FXAA
+- **Océan animé** avec écume qui lèche les plages et reflets du soleil, **herbe dense** qui ondule au vent, arbres qui bougent
+- **Ciel** avec soleil et halo, étoiles la nuit ; **4 ambiances** : matin rose, plein soleil, coucher de soleil, nuit étoilée
+- **Tempête** animée avec éclairs, tonnerre et brouillard violet quand on est dedans
+- **Glissade** (sprint + accroupi), **champignons rebondissants** qui propulsent dans les airs (planeur à nouveau)
+- **Lance-Pétard** (roquettes à dégâts de zone, souffle qui projette)
+- **Duo** : joueurs **à terre**, rampe, **réanimation** par le coéquipier (toi ou l'IA), élimination d'équipe
+- **Visualisation des sons** (pas et tirs ennemis autour du réticule), cœur qui bat quand la santé est basse
+- **Victoire** : ralenti, caméra qui tourne autour de ton perso qui danse, confettis
+- **Écran titre**, lobby avec survol cinématique de l'île au coucher du soleil, jeu **uniquement en paysage**
+
 ## Ce qu'il y a dedans
 **Partie**
 - Bus Volant qui traverse l'île, saut, chute libre (plonge en regardant vers le bas), planeur auto ou manuel
@@ -54,6 +67,8 @@ Fonctionne aussi tel quel sur GitHub Pages.
 ```
 index.html, style.css
 js/util.js     bruit, RNG, géométrie fusionnée, audio synthétisé
+js/render.js   cel-shading, contours, ciel, océan, herbe, tempête, ambiances
+js/post.js     bloom, étalonnage, vignette, FXAA
 js/data.js     armes, objets, skins, modes, tempête, défis, paramètres, profil
 js/world.js    génération de l'île, bâtiments, collisions, raycasts, mini-carte
 js/fighter.js  modèles 3D, inventaire, tir, dégâts, éliminations

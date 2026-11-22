@@ -304,3 +304,35 @@ button.primary { background: var(--sun) !important; color: var(--ink); box-shado
   #panel { top: 64px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* ============ v2 : splash, vignettes, sons, réanimation ============ */
+#splash { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: radial-gradient(120% 100% at 50% 20%, rgba(255,154,90,.55), rgba(58,42,133,.92) 60%, #1d1440); transition: opacity .5s; text-align: center; padding: 16px; }
+#splash .logo { font-family: var(--display); font-size: clamp(54px, 14vmin, 120px); line-height: .82; display: flex; flex-direction: column; transform: rotate(-5deg); text-shadow: 0 6px 0 var(--ink), 0 0 40px rgba(255,207,63,.45); animation: logoIn 1s cubic-bezier(.2,1.6,.4,1) both; }
+#splash .logo span:first-child { color: var(--sun); } #splash .logo span:last-child { color: var(--pop); font-size: .78em; letter-spacing: .06em; }
+@keyframes logoIn { from { transform: rotate(-5deg) scale(.3); opacity: 0; } }
+#splashTxt { font-family: var(--display); font-size: 20px; margin: 10px 0 0; letter-spacing: .06em; }
+#splash.ready #splashTxt { animation: pulse 1.1s infinite; color: var(--sun); font-size: 24px; }
+#splash small { color: var(--mute); font-size: 12px; }
+#splash.out { opacity: 0; pointer-events: none; }
+#confetti { position: fixed; inset: 0; z-index: 7; pointer-events: none; width: 100%; height: 100%; }
+#lowVig { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(220,20,40,.55)); opacity: 0; transition: opacity .3s; }
+body.lowhp #lowVig { opacity: 1; animation: beat .95s infinite; }
+@keyframes beat { 0%, 100% { opacity: .55; } 15% { opacity: 1; } 30% { opacity: .7; } 45% { opacity: .95; } }
+body.knocked #lowVig { background: radial-gradient(ellipse at center, rgba(120,0,20,.2) 30%, rgba(150,0,30,.75)); }
+body.knocked .btns > *:not(.interact):not(.heal), body.knocked .fireL, body.knocked #hotbar { opacity: .3; pointer-events: none; }
+#progress.bad .pr { background: conic-gradient(#ff4b5c calc(var(--p) * 360deg), rgba(0,0,0,.4) 0); }
+.sndind { position: absolute; width: 46px; height: 14px; border-radius: 50% 50% 0 0 / 100% 100% 0 0; border-top: 4px solid rgba(255,255,255,.9); opacity: 0; filter: drop-shadow(0 0 4px rgba(0,0,0,.6)); }
+.sndind.shot { border-top-color: #ffcf3f; width: 64px; }
+.sndind.step { border-top-color: rgba(255,255,255,.75); width: 36px; }
+#rotate small { color: var(--mute); }
+@media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex !important; } }
+body.splashing #lobby { visibility: hidden; }
+#splash .logo { font-size: clamp(64px, 19vmin, 150px); }
+body.victory #hud > *:not(#centerMsg) { display: none !important; }
+@media (max-height: 480px) {
+  #endScreen .card, #pause .card { padding: 12px 16px; gap: 6px; }
+  #endPlace { font-size: 26px; flex-direction: row; gap: 10px; align-items: baseline; justify-content: center; }
+  #endPlace span { font-size: 40px; }
+  .stats3 b { font-size: 18px; } #endXp { font-size: 12px; padding: 6px 10px; }
+  #endScreen .row button { padding: 9px; }
+}

@@ -103,6 +103,9 @@ class BotAI {
     this.healCD -= 0.3;
     const lowHp = f.hp < 60 || f.sh < 25;
     const mate = G.duoMateOf(f);
+    if (mate && mate.alive && mate.knocked && (!this.target || dist2(f.pos.x, f.pos.z, this.target.pos.x, this.target.pos.z) > 35 * 35 || Math.random() < 0.4)) {
+      this.target = null; this.setGoal(mate.pos.x, mate.pos.z, 'revive', mate); return;
+    }
     if (this.target && !stormUrgent) { this.goalKind = 'fight'; return; }
     if (this.target && stormUrgent && Math.random() < 0.5) { this.goalKind = 'fight'; return; }
     if (lowHp && f.hasHeal() && !this.target && !outCur && this.healCD <= 0) { this.goalKind = 'heal'; return; }
@@ -140,6 +143,14 @@ class BotAI {
       return;
     }
     if (f.state !== 'ground') return;
+    if (f.knocked) { // ramper vers le coéquipier / loin de l'agresseur
+      f.reviving = null; const mate = G.duoMateOf(f); const th = f.lastHitBy;
+      let dx = 0, dz = 0;
+      if (mate && mate.alive && !mate.knocked) { dx = mate.pos.x - f.pos.x; dz = mate.pos.z - f.pos.z; }
+      else if (th && th.alive) { dx = f.pos.x - th.pos.x; dz = f.pos.z - th.pos.z; }
+      const l = Math.hypot(dx, dz); if (l > 2) { inp.dx = dx / l; inp.dz = dz / l; f.yaw = Math.atan2(-inp.dx, -inp.dz); }
+      inp.speed = 1.8; return;
+    }
     this.thinkT -= dt;
     if (this.thinkT <= 0) { this.thinkT = 0.3 + Math.random() * 0.15; this.think(); }
     // consommation en cours
@@ -171,6 +182,13 @@ class BotAI {
   }
   follow(dt) {
     const f = this.f, inp = f.input;
+    f.reviving = null;
+    if (this.goalKind === 'revive' && this.goalRef) {
+      const m = this.goalRef;
+      if (!m.alive || !m.knocked) { this.goalKind = null; this.goalRef = null; this.path = []; this.thinkT = 0; return; }
+      if (dist2(f.pos.x, f.pos.z, m.pos.x, m.pos.z) < 1.8 * 1.8) { f.reviving = m; f.crouch = true; return; }
+      this.goal.x = m.pos.x; this.goal.z = m.pos.z; f.crouch = false;
+    }
     // ramasser / ouvrir
     if (this.goalKind === 'loot' && this.goalRef) {
       const it = this.goalRef;

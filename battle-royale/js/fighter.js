@@ -4,8 +4,8 @@
 const Models = {
   mat: null, gliderMat: null, cache: {},
   init() {
-    this.mat = new THREE.MeshLambertMaterial({ vertexColors: true });
-    this.gliderMat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+    this.mat = Look.mat({ vertexColors: true });
+    this.gliderMat = Look.mat({ vertexColors: true, side: THREE.DoubleSide });
     this.shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28, depthWrite: false });
     this.shadowGeo = new THREE.CircleGeometry(0.55, 12).rotateX(-Math.PI / 2);
   },
@@ -53,6 +53,13 @@ const Models = {
     const k = 'w_' + type + rar; if (this.cache[k]) return this.cache[k];
     const W = WEAPONS[type]; const b = new GeoBuilder(); const rc = RARITY[rar].c; const L = W.len;
     const dark = '#3a3645', mid = '#5a556a';
+    if (type === 'rocket') {
+      b.addGeo(new THREE.CylinderGeometry(0.11, 0.11, 1.0, 10).rotateX(Math.PI / 2), M4(0, 0.04, -0.35), '#4f9a3f');
+      b.addGeo(new THREE.CylinderGeometry(0.13, 0.13, 0.12, 10).rotateX(Math.PI / 2), M4(0, 0.04, -0.85), rc);
+      b.addGeo(new THREE.CylinderGeometry(0.13, 0.11, 0.12, 10).rotateX(Math.PI / 2), M4(0, 0.04, 0.12), '#3a3645');
+      b.box(0, -0.12, -0.25, 0.07, 0.2, 0.1, '#3a3645'); b.box(0, 0.17, -0.4, 0.05, 0.1, 0.2, rc);
+      const g = b.build(); this.cache[k] = g; return g;
+    }
     if (type === 'pistol') {
       b.box(0, 0.03, -0.12, 0.09, 0.11, 0.3, dark); b.box(0, -0.08, -0.03, 0.08, 0.17, 0.09, mid); b.box(0, 0.09, -0.12, 0.095, 0.02, 0.3, rc);
     } else {
@@ -151,17 +158,21 @@ class Fighter {
     this.kills = 0; this.dmgDone = 0; this.lastHitBy = null; this.headshots = 0;
     this.walk = 0; this.moveAmt = 0; this.recoil = 0; this.inStorm = false; this.emoteT = 0;
     this.kart = null; this.spread = 0; this.lastShotT = -10;
+    this.knocked = false; this.bleed = 0; this.reviveT = 0; this.slideT = 0; this.kick = 0; this.flashT = 0; this.padT = 0;
     this.createMesh();
   }
   createMesh() {
     const g = Models.char(this.skin);
     const root = new THREE.Group();
-    const body = new THREE.Mesh(g.body, Models.mat); body.castShadow = true; root.add(body);
-    const legL = new THREE.Mesh(g.leg, Models.mat); legL.position.set(-0.15, 0.78, 0); root.add(legL);
-    const legR = new THREE.Mesh(g.leg, Models.mat); legR.position.set(0.15, 0.78, 0); root.add(legR);
+    const mat = this.mat = Models.mat.clone(); mat.emissive = new THREE.Color(0, 0, 0);
+    const body = new THREE.Mesh(g.body, mat); body.castShadow = true; root.add(body);
+    const legL = new THREE.Mesh(g.leg, mat); legL.position.set(-0.15, 0.78, 0); legL.castShadow = true; root.add(legL);
+    const legR = new THREE.Mesh(g.leg, mat); legR.position.set(0.15, 0.78, 0); legR.castShadow = true; root.add(legR);
     const arms = new THREE.Group(); arms.position.set(0, 1.38, 0); root.add(arms);
-    const armM = new THREE.Mesh(g.arms, Models.mat); arms.add(armM);
-    const gun = new THREE.Mesh(Models.weapon('pistol', 0), Models.mat); gun.position.set(0.16, -0.12, -0.5); gun.visible = false; arms.add(gun);
+    const armM = new THREE.Mesh(g.arms, mat); arms.add(armM);
+    const gun = new THREE.Mesh(Models.weapon('pistol', 0), mat); gun.position.set(0.16, -0.12, -0.5); gun.visible = false; arms.add(gun);
+    this.outl = [];
+    if (Look.toon) { this.outl.push(Look.addOutline(body, 0.035), Look.addOutline(legL, 0.03), Look.addOutline(legR, 0.03), Look.addOutline(armM, 0.03), Look.addOutline(gun, 0.022)); }
     const sh = new THREE.Mesh(Models.shadowGeo, Models.shadowMat); sh.renderOrder = 1; root.add(sh);
     const glider = new THREE.Mesh(Models.glider(this.gliderDef), Models.gliderMat); glider.visible = false; root.add(glider);
     this.mesh = root; this.parts = { body, legL, legR, arms, gun, sh, glider };
@@ -178,6 +189,7 @@ class Fighter {
     if (w) { gun.geometry = Models.weapon(w.w, w.rar); gun.visible = true; gun.position.set(0.16, -0.12, -0.5); }
     else if (it && it.kind === 'cons') { gun.geometry = Models.consumable(it.c); gun.visible = true; gun.position.set(0.1, -0.12, -0.6); }
     else gun.visible = false;
+    if (gun.userData.outline) { Look.onormal(gun.geometry); gun.userData.outline.geometry = gun.geometry; }
   }
   // ---------- inventaire ----------
   freeSlot() { return this.slots.findIndex(s => !s); }
@@ -207,6 +219,7 @@ function traceShot(shooter, o, d, range, minT) {
   for (const f of Game.fighters) {
     if (!f.alive || f === shooter || (f.team === shooter.team) || f.state === 'bus') continue;
     const dx = f.pos.x - o.x, dz = f.pos.z - o.z; if (dx * dx + dz * dz > (t + 2) * (t + 2)) continue;
+    if (f.knocked) { const tk = raySphere(o, d, f.pos.x, f.pos.y + 0.35, f.pos.z, 0.55); if (tk > minT && tk < t) { t = tk; target = f; head = false; } continue; }
     const cr = f.crouch ? -0.4 : 0;
     const k = f.kart ? 0.4 : 0;
     let th = raySphere(o, d, f.pos.x, f.pos.y + 1.72 + cr + k, f.pos.z, 0.33);
@@ -229,7 +242,7 @@ function muzzlePos(f, out) {
 }
 
 function canFire(f) {
-  const w = f.weapon; if (!w || !f.alive) return false;
+  const w = f.weapon; if (!w || !f.alive || f.knocked) return false;
   if (f.fireT > 0 || f.reloadT > 0 || f.switchT > 0 || f.state !== 'ground') return false;
   if (w.mag <= 0) { startReload(f); return false; }
   return true;
@@ -256,6 +269,16 @@ function playerShoot(f, camPos, camDir, camMinT) {
   if (W.scope && f.ads) spr = moving ? 0.01 : 0;
   muzzlePos(f, _v1);
   let anyHit = false;
+  if (W.projectile) {
+    const r = traceShot(f, camPos, camDir, W.range, camMinT);
+    _v3.copy(camPos).addScaledVector(camDir, r.t);
+    Game.fireRocket(f, _v1, _v2.copy(_v3).sub(_v1).normalize(), w.rar);
+    Effects.flash(_v1); w.mag--; f.fireT = W.rate; f.lastShotT = Game.time; Sfx.rocket(0); f.recoil += 0.06; f.kick = 0.5;
+    if (Settings.camShake) Game.shake = Math.max(Game.shake, 0.3);
+    Game.noise(f, 120);
+    if (w.mag <= 0) setTimeout(() => { if (f.weapon === w) startReload(f); }, 300);
+    return false;
+  }
   for (let p = 0; p < W.pellets; p++) {
     _v2.copy(camDir);
     if (spr > 0) { _v2.x += (Math.random() - 0.5) * 2 * spr; _v2.y += (Math.random() - 0.5) * 2 * spr; _v2.z += (Math.random() - 0.5) * 2 * spr; _v2.normalize(); }
@@ -273,8 +296,8 @@ function playerShoot(f, camPos, camDir, camMinT) {
     } else if (p < 3) Effects.impact(_v3);
     if (p < (W.pellets > 1 ? 4 : 1)) Effects.tracer(_v1, _v3, W.pellets > 1);
   }
-  Effects.flash(_v1);
-  w.mag--; f.fireT = W.rate; f.lastShotT = Game.time;
+  Effects.flash(_v1); Effects.casing(_v1, f.yaw);
+  w.mag--; f.fireT = W.rate; f.lastShotT = Game.time; f.kick = W.pellets > 1 || W.scope ? 0.45 : 0.18;
   f.spread = Math.min(f.spread + W.spread * 0.25, W.spread * 1.2);
   Sfx.shot(W, 0);
   Game.noise(f, W.range > 300 ? 160 : 90);
@@ -307,6 +330,14 @@ function botShoot(f, target, dist) {
   if (target.isPlayer && Game.time - Game.matchStart < 25) p *= 0.7;
   if (target.kart) p *= 0.7;
   const tp = _v2.set(target.pos.x, target.pos.y + 1.1 + (target.kart ? 0.4 : 0), target.pos.z);
+  if (W.projectile) {
+    const err = (1 - L.acc) * dist * 0.12;
+    _v3.set(tp.x + (Math.random() - 0.5) * err, tp.y - 0.8 + (Math.random() - 0.5) * err * 0.5, tp.z + (Math.random() - 0.5) * err).sub(_v1).normalize();
+    Game.fireRocket(f, _v1, _v3, w.rar);
+    w.mag--; f.fireT = W.rate * 1.6; f.lastShotT = Game.time;
+    if (Game.player && dist2(f.pos.x, f.pos.z, Game.camPos.x, Game.camPos.z) < 160 * 160) Sfx.rocket(Math.sqrt(dist2(f.pos.x, f.pos.z, Game.camPos.x, Game.camPos.z)));
+    Game.noise(f, 120); return;
+  }
   let hits = 0, headHit = false;
   const visible = World.los(_v1, tp);
   for (let k = 0; k < W.pellets; k++) if (visible && Math.random() < p) { hits++; if (Math.random() < 0.12 + L.acc * 0.2) headHit = true; }
@@ -328,6 +359,13 @@ function botShoot(f, target, dist) {
 function applyDamage(t, dmg, att, head, wtype, at) {
   if (!t.alive || dmg <= 0) return;
   if (Game.godMode && t.isPlayer) return;
+  t.flashT = 0.12;
+  if (t.knocked) {
+    t.bleed -= dmg * 0.8; if (att && att !== t) t.lastHitBy = att;
+    if (att && att.isPlayer && at) { if (Settings.dmgNumbers) HUD.dmgNumber(at, dmg, false, false); HUD.hitmarker(false, t.bleed <= 0); Sfx.hit(false); }
+    if (t.bleed <= 0) eliminate(t, att, wtype, head);
+    return;
+  }
   let rem = dmg; let broke = false;
   if (t.sh > 0 && wtype !== 'storm') { const a = Math.min(t.sh, rem); t.sh -= a; rem -= a; if (t.sh <= 0) broke = true; }
   t.hp -= rem;
@@ -343,11 +381,30 @@ function applyDamage(t, dmg, att, head, wtype, at) {
     t.using = null;
   }
   if (t.ai && att && att !== t && att.alive) t.ai.onHit(att);
-  if (t.hp <= 0) eliminate(t, att, wtype, head);
+  if (t.hp <= 0) {
+    // Duo : mis à terre si un coéquipier est encore debout
+    const mateUp = Game.mode.team > 1 && wtype !== 'storm' && Game.fighters.some(o => o !== t && o.alive && o.team === t.team && !o.knocked);
+    if (mateUp) knockDown(t, att, wtype); else eliminate(t, att, wtype, head);
+  }
+}
+
+function knockDown(t, att, wtype) {
+  t.knocked = true; t.hp = 1; t.sh = 0; t.bleed = 100; t.using = null; t.reloadT = 0; t.crouch = false; t.ads = false; t.slideT = 0;
+  if (t.kart) { t.kart.driver = null; t.kart = null; }
+  HUD.feed(`<b class="${att && att.isPlayer ? 'me' : ''}">${att ? att.name : '?'}</b> ⤓ <b class="${t.isPlayer ? 'me' : t.team === Game.playerTeam ? 'ally' : ''}">${t.name}</b> <i>à terre</i>`);
+  if (att && att.isPlayer) { HUD.killBanner(t.name + ' à terre', att.kills); Sfx.kill(); }
+  if (t.isPlayer) { HUD.message('Tu es <b>à terre</b> ! Rampe à couvert, ton coéquipier peut te réanimer', 3, 'bad'); vibrate(200); }
+  else if (t.team === Game.playerTeam) HUD.message('Ton coéquipier est à terre ! Va le <b>réanimer</b>', 3, 'bad');
+}
+function revive(t) {
+  t.knocked = false; t.hp = 30; t.bleed = 0; t.reviveT = 0;
+  HUD.feed(`<b class="${t.isPlayer ? 'me' : t.team === Game.playerTeam ? 'ally' : ''}">${t.name}</b> <i>est réanimé·e</i>`);
+  if (t.team === Game.playerTeam) Sfx.heal();
 }
 
 function eliminate(t, att, wtype, head) {
-  t.alive = false; t.hp = 0; t.state = 'dead';
+  if (!t.alive) return;
+  t.alive = false; t.hp = 0; t.state = 'dead'; t.knocked = false;
   if (t.kart) { t.kart.driver = null; t.kart = null; }
   Game.dropLoot(t);
   Effects.poof(t.pos);
@@ -361,5 +418,9 @@ function eliminate(t, att, wtype, head) {
   } else if (wtype === 'storm') txt = `<b class="${t.isPlayer ? 'me' : ''}">${t.name}</b> a été emporté·e par la tempête`;
   else txt = `<b class="${t.isPlayer ? 'me' : ''}">${t.name}</b> est tombé·e`;
   HUD.feed(txt);
+  // plus personne debout dans l'équipe : les coéquipiers à terre sont éliminés
+  if (Game.mode.team > 1 && !Game.fighters.some(o => o.alive && o.team === t.team && !o.knocked)) {
+    for (const o of Game.fighters) if (o.alive && o.team === t.team && o.knocked) eliminate(o, o.lastHitBy || att, wtype, false);
+  }
   Game.onElimination(t, att);
 }

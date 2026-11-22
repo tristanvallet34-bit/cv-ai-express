@@ -8,6 +8,7 @@ const SETTINGS_UI = [
   { k: 'fov', n: 'Champ de vision', t: 'range', min: 55, max: 95, step: 1, fmt: v => v + '°' },
   { k: 'showFps', n: 'Afficher les FPS', t: 'toggle' },
   { k: 'camShake', n: 'Tremblement de caméra', t: 'toggle' },
+  { k: 'timeOfDay', n: 'Ambiance des parties', t: 'select', opts: { random: 'Aléatoire', morning: 'Matin rose', day: 'Plein soleil', sunset: 'Coucher de soleil', night: 'Nuit étoilée' } },
   { sec: 'Contrôles' },
   { k: 'sens', n: 'Sensibilité caméra', t: 'range', min: 0.3, max: 2.5, step: 0.05, fmt: v => v.toFixed(2) },
   { k: 'adsSens', n: 'Sensibilité en visée', t: 'range', min: 0.2, max: 1.5, step: 0.05, fmt: v => v.toFixed(2) },
@@ -28,6 +29,7 @@ const SETTINGS_UI = [
   { k: 'name', n: 'Pseudo', t: 'text' },
   { k: 'botLevel', n: 'Difficulté des bots', t: 'select', opts: { easy: 'Facile', normal: 'Normal', hard: 'Difficile' } },
   { k: 'dmgNumbers', n: 'Nombres de dégâts', t: 'toggle' },
+  { k: 'soundViz', n: 'Visualiser les sons', t: 'toggle', d: 'Affiche la direction des tirs et des pas ennemis autour du réticule' },
 ];
 
 const UI = {
@@ -73,7 +75,8 @@ const UI = {
     const pod = new GeoBuilder();
     pod.addGeo(new THREE.CylinderGeometry(1.5, 1.7, 0.4, 24), M4(0, -0.2, 0), '#ffcf3f');
     pod.addGeo(new THREE.CylinderGeometry(1.55, 1.55, 0.06, 24), M4(0, 0.02, 0), '#ff4f8b');
-    s.add(new THREE.Mesh(pod.build(), new THREE.MeshLambertMaterial({ vertexColors: true })));
+    const podM = new THREE.Mesh(pod.build(), Look.mat({ vertexColors: true })); s.add(podM); if (Look.toon) Look.addOutline(podM, 0.03);
+    const rim = new THREE.DirectionalLight(0xff9adf, 0.6); rim.position.set(-4, 3, -4); s.add(rim);
     this.lobbyCam = new THREE.PerspectiveCamera(32, 1, 0.1, 50);
     this.charRot = 0.4; this.danceT = 0;
     this.setLobbyChar();
@@ -88,31 +91,38 @@ const UI = {
   },
   renderLobby(dt) {
     const R = Game.renderer, cv = $('lobbyCv');
-    const w = cv.clientWidth, h = cv.clientHeight; if (!w || !h) return;
-    if (this._lw !== w || this._lh !== h) { this._lw = w; this._lh = h; }
     this.t = (this.t || 0) + dt;
-    const f = this.lobbyChar, P = f.parts;
+    // fond : survol cinématique de l'île
+    const C = Game.camera, a = this.t * 0.035 + 0.6, P = World.pois[5];
+    C.position.set(P.x + Math.cos(a) * 150, 62 + Math.sin(this.t * 0.2) * 6, P.z + Math.sin(a) * 150);
+    C.lookAt(P.x, 6, P.z); C.fov = 55; C.updateProjectionMatrix();
+    Game.camPos.copy(C.position); World.sky.position.set(C.position.x, 0, C.position.z);
+    const so = Look.sunOff; Game.sun.position.set(P.x + so.x, so.y, P.z + so.z); Game.sun.target.position.set(P.x, 0, P.z);
+    Look.update(dt, C.position);
+    R.setScissorTest(false); Game.renderScene();
+    // personnage sur son podium
+    const w = cv.clientWidth, h = cv.clientHeight; if (!w || !h || $('lobby').hidden || document.body.classList.contains('splashing')) return;
+    const f = this.lobbyChar, Pp = f.parts;
     if (!this.drag) this.charRot += dt * 0.35;
     f.mesh.rotation.y = this.charRot;
     if (this.danceT > 0) {
-      this.danceT -= dt; P.body.position.y = Math.abs(Math.sin(this.t * 9)) * 0.3; P.arms.rotation.x = Math.sin(this.t * 9) * 1.2 + 1.4;
-      P.legL.rotation.x = Math.sin(this.t * 9) * 0.6; P.legR.rotation.x = -Math.sin(this.t * 9) * 0.6; f.mesh.rotation.y += Math.sin(this.t * 4) * 0.5;
-    } else { P.body.position.y = Math.sin(this.t * 2) * 0.02; P.arms.rotation.x = -0.15 + Math.sin(this.t * 2) * 0.03; P.legL.rotation.x = P.legR.rotation.x = 0; }
-    P.arms.position.y = 1.38 + P.body.position.y;
-    const gl = P.glider.visible;
+      this.danceT -= dt; Pp.body.position.y = Math.abs(Math.sin(this.t * 9)) * 0.3; Pp.arms.rotation.x = Math.sin(this.t * 9) * 1.2 + 1.4;
+      Pp.legL.rotation.x = Math.sin(this.t * 9) * 0.6; Pp.legR.rotation.x = -Math.sin(this.t * 9) * 0.6; f.mesh.rotation.y += Math.sin(this.t * 4) * 0.5;
+    } else { Pp.body.position.y = Math.sin(this.t * 2) * 0.02; Pp.arms.rotation.x = -0.15 + Math.sin(this.t * 2) * 0.03; Pp.legL.rotation.x = Pp.legR.rotation.x = 0; }
+    Pp.arms.position.y = 1.38 + Pp.body.position.y;
+    const gl = Pp.glider.visible;
     const far = w / h < 0.9 ? 1.6 : 1; this.lobbyCam.aspect = w / h; this.lobbyCam.position.set(0, gl ? 2.4 : 1.4, (gl ? 9 : 6.2) * far); this.lobbyCam.lookAt(0, gl ? 1.4 : 1.0, 0); this.lobbyCam.updateProjectionMatrix();
-    // rendu dans la zone du canvas lobby (même renderer, viewport)
     const rect = cv.getBoundingClientRect(); const H = window.innerHeight;
-    R.setScissorTest(false); R.setClearColor(0x000000, 0); R.clear();
+    R.autoClear = false; R.clearDepth();
     R.setScissorTest(true);
     R.setViewport(rect.left, H - rect.bottom, rect.width, rect.height); R.setScissor(rect.left, H - rect.bottom, rect.width, rect.height);
-    R.clear(); R.render(this.lobbyScene, this.lobbyCam);
-    R.setScissorTest(false); R.setViewport(0, 0, window.innerWidth, window.innerHeight); R.setClearColor(0xbfe6ff, 1);
+    R.render(this.lobbyScene, this.lobbyCam);
+    R.setScissorTest(false); R.setViewport(0, 0, window.innerWidth, window.innerHeight); R.autoClear = true;
   },
   showLobby() {
     Game.phase = 'lobby';
     $('lobby').hidden = false; $('hud').hidden = true; $('endScreen').hidden = true; $('pause').hidden = true; $('specBar').hidden = true;
-    Game.renderer.setClearColor(0x000000, 0); Game.renderer.clear(); Game.renderer.setClearColor(0xbfe6ff, 1);
+    Look.applyTime('sunset'); Game.scene.fog.near = 120; Game.scene.fog.far = 700;
     document.body.classList.add('inlobby');
     this.renderTop(); this.renderModes(); this.openTab('play'); this.setLobbyChar();
     Sfx.musicOn = Settings.music; if (Sfx.ctx) Sfx.startMusic();

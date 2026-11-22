@@ -138,6 +138,11 @@ const Sfx = {
   chest() { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.tone(f, 0.18, 0.15, 'triangle'), i * 70)); },
   kill() { [784, 988, 1318].forEach((f, i) => setTimeout(() => this.tone(f, 0.14, 0.2, 'square'), i * 60)); },
   win() { [523, 659, 784, 1046, 784, 1046, 1318].forEach((f, i) => setTimeout(() => this.tone(f, 0.25, 0.2, 'triangle'), i * 140)); },
+  rocket(d) { const a = clamp(1 - d / 220, 0, 1); if (a <= 0) return; this.noise(0.5, 900, 0.5 * a * a, 'bandpass', 1.2); this.tone(220, 0.4, 0.25 * a, 'sawtooth', 0.4); },
+  bounce() { this.tone(180, 0.35, 0.3, 'sine', 4); this.tone(360, 0.25, 0.15, 'triangle', 3); },
+  heart() { this.tone(60, 0.12, 0.35, 'sine', 0.7); setTimeout(() => this.tone(55, 0.12, 0.28, 'sine', 0.7), 160); },
+  thunder() { this.noise(1.6, 180, 0.5, 'lowpass'); setTimeout(() => this.noise(1.2, 120, 0.35), 180); },
+  wind(v) { this.noise(0.25, 600 + v * 400, 0.04 + v * 0.05, 'bandpass', 0.8); },
   storm() { this.noise(0.6, 200, 0.12, 'bandpass', 2); },
   startMusic() {
     if (!this.ctx || !this.musicOn || this.musicNode) return;

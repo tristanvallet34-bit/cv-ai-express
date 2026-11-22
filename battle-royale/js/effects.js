@@ -12,7 +12,7 @@ const Effects = {
     const fm = new THREE.MeshBasicMaterial({ color: 0xffd54a, transparent: true, opacity: 1, depthWrite: false });
     for (let i = 0; i < 16; i++) { const m = new THREE.Mesh(fg, fm); m.visible = false; m.life = 0; scene.add(m); this.flashes.push(m); }
     const pg = new THREE.BoxGeometry(0.16, 0.16, 0.16);
-    for (let i = 0; i < 120; i++) { const m = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true })); m.visible = false; m.life = 0; m.v = new THREE.Vector3(); scene.add(m); this.parts.push(m); }
+    for (let i = 0; i < 220; i++) { const m = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true })); m.visible = false; m.life = 0; m.v = new THREE.Vector3(); scene.add(m); this.parts.push(m); }
     // explosion
     this.boomMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xffa531, transparent: true, opacity: 0.9, depthWrite: false }));
     this.boomMesh.visible = false; scene.add(this.boomMesh); this.boomLife = 0;
@@ -32,6 +32,13 @@ const Effects = {
       m.scale.setScalar(0.6 + Math.random());
     }
   },
+  casing(p, yaw) {
+    const m = this.parts[this.pi++ % this.parts.length];
+    m.position.copy(p); m.v.set(Math.cos(yaw) * 3 + (Math.random() - 0.5), 2.5 + Math.random(), -Math.sin(yaw) * 3);
+    m.material.color.set('#ffcf3f'); m.material.opacity = 1; m.visible = true; m.life = m.maxLife = 0.5; m.scale.set(0.35, 0.35, 0.8);
+  },
+  trail(p) { this.burst(p, '#cfc8d8', 1, 1, 0.6, 0.3); this.burst(p, '#ffb347', 1, 1.5, 0.15, 0.3); },
+  confettiBurst(p) { const cs = ['#ff4f8b', '#ffcf3f', '#2ee6c8', '#3ea8ff', '#bd63ff']; for (let i = 0; i < 5; i++) this.burst(p, cs[i], 10, 9, 1.6, 1.4); },
   impact(p) { this.burst(p, '#e8e2d0', 3, 3, 0.3); },
   poof(p) { const q = p.clone(); q.y += 1; this.burst(q, '#ffffff', 14, 6, 0.7, 1); this.burst(q, '#ff4f8b', 8, 5, 0.6, 1); this.burst(q, '#ffcf3f', 8, 5, 0.6, 1); },
   boom(p) { this.boomMesh.position.copy(p); this.boomMesh.visible = true; this.boomLife = 0.45; this.burst(p, '#ff7b2e', 20, 14, 0.8, 1); this.burst(p, '#5a5560', 14, 8, 1.2, 1.2); },

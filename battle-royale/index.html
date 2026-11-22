@@ -13,13 +13,14 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
-<body class="inlobby">
+<body class="inlobby splashing">
 <canvas id="game"></canvas>
 <div id="touch"></div>
 
 <!-- ================= HUD ================= -->
 <div id="hud" hidden>
   <div id="stormVig"></div>
+  <div id="lowVig"></div>
   <div id="scope" hidden><div class="ring"></div></div>
   <div id="xhair"><i></i><i></i><i></i><i></i><b></b></div>
   <div id="hitmark"><i></i><i></i><i></i><i></i></div>
@@ -138,12 +139,16 @@
 </div>
 <div id="specBar" hidden><span>Mode spectateur</span><button id="specNext">Joueur suivant</button><button id="specQuit" class="primary">Menu</button></div>
 
+<canvas id="confetti" hidden></canvas>
+<div id="splash"><div class="logo"><span>TOON</span><span>ROYALE</span></div><p id="splashTxt">Création de l'île…</p><small>Joue en paysage · avec un casque c'est encore mieux</small></div>
 <div id="loading" hidden><div class="spin"></div><p>Le Bus Volant fait le plein…</p></div>
-<div id="rotate"><svg viewBox="0 0 24 24"><path d="M16.5 2h-9A1.5 1.5 0 006 3.5v17A1.5 1.5 0 007.5 22h9a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0016.5 2zM12 20.5a1 1 0 110-2 1 1 0 010 2zM16 17H8V5h8z"/></svg><p>Tourne ton téléphone<br>en mode paysage</p></div>
+<div id="rotate"><svg viewBox="0 0 24 24"><path d="M16.5 2h-9A1.5 1.5 0 006 3.5v17A1.5 1.5 0 007.5 22h9a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0016.5 2zM12 20.5a1 1 0 110-2 1 1 0 010 2zM16 17H8V5h8z"/></svg><p>Toon Royale se joue<br>en mode paysage</p><small>Tourne ton téléphone</small></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="js/util.js"></script>
 <script src="js/data.js"></script>
+<script src="js/render.js"></script>
+<script src="js/post.js"></script>
 <script src="js/world.js"></script>
 <script src="js/fighter.js"></script>
 <script src="js/bot.js"></script>

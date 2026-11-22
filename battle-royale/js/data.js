@@ -21,6 +21,7 @@ const AMMO = {
   medium: { n: 'Munitions moyennes', c: '#6fe08a', pick: 30, max: 999 },
   shells: { n: 'Cartouches', c: '#ffb36b', pick: 8, max: 999 },
   heavy: { n: 'Munitions lourdes', c: '#ff7a7a', pick: 6, max: 999 },
+  rockets: { n: 'Pétards', c: '#ffd23f', pick: 3, max: 999 },
 };
 
 // dmg: dégâts par balle, rate: secondes entre tirs, spread: dispersion (radians)
@@ -30,9 +31,10 @@ const WEAPONS = {
   ar: { n: 'Fusil Comète', short: 'FUSIL D\'ASSAUT', ammo: 'medium', dmg: 30, rate: 0.15, mag: 30, reload: 2.1, spread: 0.034, ads: 0.008, range: 210, pellets: 1, auto: true, head: 1.6, min: 0, max: 4, len: 0.85, sound: { f: 1300, len: 0.11, vol: 0.5 }, botRange: 90, zoom: 1.5 },
   shotgun: { n: 'Pompe Tonnerre', short: 'POMPE', ammo: 'shells', dmg: 10, rate: 0.85, mag: 5, reload: 3.0, spread: 0.09, ads: 0.075, range: 38, pellets: 10, auto: false, head: 1.5, min: 0, max: 4, len: 0.8, sound: { f: 700, len: 0.25, vol: 0.75 }, botRange: 12, zoom: 1.15 },
   sniper: { n: 'Sniper Éclair', short: 'SNIPER', ammo: 'heavy', dmg: 102, rate: 1.35, mag: 4, reload: 2.7, spread: 0.07, ads: 0.0, range: 650, pellets: 1, auto: false, head: 2.5, min: 2, max: 4, len: 1.15, sound: { f: 900, len: 0.35, vol: 0.85 }, botRange: 220, zoom: 4, scope: true },
+  rocket: { n: 'Lance-Pétard', short: 'LANCE-PÉTARD', ammo: 'rockets', dmg: 105, rate: 1.1, mag: 1, reload: 2.4, spread: 0.01, ads: 0.0, range: 300, pellets: 1, auto: false, head: 1, min: 3, max: 4, len: 0.9, sound: { f: 400, len: 0.4, vol: 0.7 }, botRange: 45, zoom: 1.3, projectile: true },
   minigun: { n: 'Mini-Tornade', short: 'MITRAILLEUSE', ammo: 'medium', dmg: 14, rate: 0.055, mag: 80, reload: 3.6, spread: 0.06, ads: 0.045, range: 120, pellets: 1, auto: true, head: 1.3, min: 3, max: 4, len: 1.0, sound: { f: 1600, len: 0.05, vol: 0.4 }, botRange: 40, zoom: 1.2 },
 };
-const FLOOR_WEAPONS = ['pistol', 'pistol', 'smg', 'smg', 'ar', 'ar', 'ar', 'shotgun', 'shotgun', 'sniper'];
+const FLOOR_WEAPONS = ['pistol', 'pistol', 'smg', 'smg', 'ar', 'ar', 'ar', 'shotgun', 'shotgun', 'sniper', 'rocket'];
 
 const CONS = {
   bandage: { n: 'Bandages', time: 2.4, hp: 15, cap: 75, stack: 15, pick: 5, c: '#ff6b6b', icon: '✚' },
@@ -110,7 +112,7 @@ const SETTINGS_DEF = {
   quality: 'auto', fpsCap: 60, showFps: false, sens: 1.0, adsSens: 0.7, invertY: false,
   aimAssist: true, autoFire: false, fov: 70, leftFire: true, leftHanded: false, hudScale: 1.0,
   vol: 0.7, music: true, vibration: true, dmgNumbers: true, autoPickup: true, botLevel: 'normal',
-  camShake: true, sprintAuto: true, minimapZoom: 1, name: 'Joueur',
+  camShake: true, sprintAuto: true, minimapZoom: 1, name: 'Joueur', timeOfDay: 'random', soundViz: true,
 };
 const Settings = Object.assign({}, SETTINGS_DEF, Store.get('settings', {}));
 function saveSettings() { Store.set('settings', Settings); }

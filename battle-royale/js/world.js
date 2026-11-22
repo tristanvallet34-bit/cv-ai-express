@@ -165,18 +165,11 @@ const World = {
     }
     tg.setAttribute('color', new THREE.BufferAttribute(cols, 3));
     tg.computeVertexNormals();
-    const terrain = new THREE.Mesh(tg, new THREE.MeshLambertMaterial({ vertexColors: true }));
+    const terrain = new THREE.Mesh(tg, Look.mat({ vertexColors: true }));
     terrain.receiveShadow = true; terrain.name = 'terrain';
     scene.add(terrain);
     this.terrain = terrain;
 
-    // ---- eau ----
-    const wg = new THREE.PlaneGeometry(3000, 3000, 1, 1); wg.rotateX(-Math.PI / 2);
-    const water = new THREE.Mesh(wg, new THREE.MeshLambertMaterial({ color: 0x35c6ea, transparent: true, opacity: 0.88 }));
-    water.position.y = 0.2; scene.add(water); this.water = water;
-    // écume autour de l'île
-    const foam = new THREE.Mesh(new THREE.RingGeometry(this.ISL - 70, this.ISL + 30, 64, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x9ff0ff, transparent: true, opacity: 0.25, depthWrite: false }));
-    foam.position.y = 0.25; scene.add(foam);
 
     // ---- bâtiments ----
     const gb = new GeoBuilder(), rb = new GeoBuilder();
@@ -189,15 +182,20 @@ const World = {
       if (R() < 0.5) this.addHouse(x, z, 8 + R() * 3, 7 + R() * 3, 4.2, Math.floor(R() * 4), R, { small: true });
       else this.addCoverCluster(x, z, R);
     }
-    const bm = new THREE.Mesh(gb.build(), new THREE.MeshLambertMaterial({ vertexColors: true }));
+    this.buildPads(R);
+    const bm = new THREE.Mesh(gb.build(), Look.mat({ vertexColors: true }));
     bm.castShadow = true; bm.receiveShadow = true; scene.add(bm); this.bldMesh = bm;
-    const rm = new THREE.Mesh(rb.build(), new THREE.MeshLambertMaterial({ vertexColors: true }));
+    const rm = new THREE.Mesh(rb.build(), Look.mat({ vertexColors: true }));
     rm.castShadow = true; scene.add(rm); this.roofMesh = rm;
+    this.outl = { bld: [], tree: [] };
+    if (Look.toon) { this.outl.bld.push(Look.addOutline(bm, 0.055), Look.addOutline(rm, 0.07)); }
 
     // ---- arbres, rochers, buissons (instanciés) ----
     this.buildNature(scene, R);
-    // ---- ciel & nuages ----
+    // ---- ciel, nuages, océan ----
     this.buildSky(scene, R);
+    Look.buildHeightTex();
+    this.water = Look.water(scene);
     // ---- points de loot éparpillés ----
     for (let i = 0; i < 90; i++) {
       const a = R() * TAU, d = 30 + R() * 340; const x = Math.cos(a) * d, z = Math.sin(a) * d;
@@ -209,6 +207,22 @@ const World = {
       if (this.h(x, z) < 2) continue; this.chestSpots.push({ x, z, out: true });
     }
     this.buildMinimap();
+  },
+  // champignons rebondissants
+  buildPads(R) {
+    this.pads = [];
+    const spots = [];
+    for (const p of this.pois) { const a = R() * TAU; spots.push([p.x + Math.cos(a) * (p.r + 6), p.z + Math.sin(a) * (p.r + 6)]); }
+    for (let i = 0; i < 8; i++) { const a = R() * TAU, d = 80 + R() * 260; spots.push([Math.cos(a) * d, Math.sin(a) * d]); }
+    for (const [x, z] of spots) {
+      const h = this.h(x, z); if (h < 2 || h > 34 || this.nearWall(x, z, 3) || this.inBuilding(x, z)) continue;
+      const gb = this.gb;
+      gb.addGeo(new THREE.CylinderGeometry(0.5, 0.7, 0.9, 10), M4(x, h + 0.35, z), '#fff3e0');
+      gb.addGeo(new THREE.SphereGeometry(1.7, 14, 6, 0, TAU, 0, Math.PI / 2), M4(x, h + 0.6, z, 0, 0, 0, 1, 0.45, 1), '#ff3d6e');
+      for (let k = 0; k < 6; k++) { const a = k / 6 * TAU + 0.3; gb.addGeo(new THREE.SphereGeometry(0.22, 6, 4), M4(x + Math.cos(a) * 1.05, h + 1.05, z + Math.sin(a) * 1.05), '#ffffff'); }
+      gb.addGeo(new THREE.SphereGeometry(0.26, 6, 4), M4(x, h + 1.37, z), '#ffffff');
+      this.pads.push({ x, z, y: h });
+    }
   },
   nearPoi(x, z, pad) { for (const p of this.pois) if (dist2(x, z, p.x, p.z) < (p.r + pad) ** 2) return p; return null; },
   roads: null,
@@ -230,11 +244,11 @@ const World = {
     if (h > 1.0) {
       for (const p of this.pois) {
         const d = Math.sqrt(dist2(x, z, p.x, p.z));
-        if (d < p.r * 0.95) { c.lerp(new THREE.Color(p.type === 'cabin' && p.h > 30 ? '#e8eef8' : p.type === 'farm' ? '#d8c27e' : '#d9cfb4'), 0.75 * (1 - smoothstep(p.r * 0.7, p.r * 0.95, d))); break; }
+        if (d < p.r * 0.95) { c.lerp(new THREE.Color(p.type === 'cabin' && p.h > 30 ? '#e8eef8' : p.type === 'farm' ? '#cdb672' : '#c9bea0'), 0.75 * (1 - smoothstep(p.r * 0.7, p.r * 0.95, d))); break; }
       }
       for (const r of this.roads) {
         const d = segDist(x, z, r[0], r[1], r[2], r[3]);
-        if (d < 5) { c.lerp(new THREE.Color('#e3c78f'), 0.8 * (1 - d / 5)); break; }
+        if (d < 5) { c.lerp(new THREE.Color('#d6b77c'), 0.8 * (1 - d / 5)); break; }
       }
     }
     return c;
@@ -461,25 +475,27 @@ const World = {
       const h = this.h(x, z); if (h < 2.6 || h > 30 || this.inBuilding(x, z) || this.nearWall(x, z, 2)) continue;
       bushes.push({ x, y: h, z, s: 0.7 + R() * 0.7 });
     }
-    const mat = new THREE.MeshLambertMaterial({ vertexColors: false });
-    const mk = (geo, list, colorFn, setup) => {
-      const m = new THREE.InstancedMesh(geo, mat.clone(), list.length);
+    const mk = (geo, list, colorFn, setup, sway, ol) => {
+      const mat = Look.mat({}); if (sway) Look.sway(mat, sway);
+      const m = new THREE.InstancedMesh(geo, mat, list.length);
       const dummy = new THREE.Object3D(); const col = new THREE.Color();
       list.forEach((t, i) => { setup(dummy, t); dummy.updateMatrix(); m.setMatrixAt(i, dummy.matrix); m.setColorAt(i, colorFn(t, col)); });
       m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true;
-      m.frustumCulled = false; m.castShadow = true; scene.add(m); return m;
+      m.frustumCulled = false; m.castShadow = true; scene.add(m);
+      if (Look.toon && ol) this.outl.tree.push(Look.addOutline(m, ol));
+      return m;
     };
     // feuillus : tronc + boule
     const trunk = new THREE.CylinderGeometry(0.22, 0.32, 2.4, 6); trunk.translate(0, 1.2, 0);
-    mk(trunk, trees.concat(pines), (t, c) => c.set('#8a5a3c'), (d, t) => { d.position.set(t.x, t.y, t.z); d.scale.setScalar(t.s); d.rotation.set(0, 0, 0); });
+    mk(trunk, trees.concat(pines), (t, c) => c.set('#8a5a3c'), (d, t) => { d.position.set(t.x, t.y, t.z); d.scale.setScalar(t.s); d.rotation.set(0, 0, 0); }, 0, 0.06);
     const ball = new THREE.IcosahedronGeometry(1.7, 0); ball.translate(0, 3.6, 0);
-    mk(ball, trees, (t, c) => c.set(pick(['#4fbf3f', '#5fd35a', '#3fae4a', '#7ad34a'])), (d, t) => { d.position.set(t.x, t.y, t.z); d.scale.setScalar(t.s); d.rotation.set(0, t.x, 0); });
+    mk(ball, trees, (t, c) => c.set(pick(['#4fbf3f', '#5fd35a', '#3fae4a', '#7ad34a'])), (d, t) => { d.position.set(t.x, t.y, t.z); d.scale.setScalar(t.s); d.rotation.set(0, t.x, 0); }, 0.05, 0.08);
     const cone = new THREE.ConeGeometry(1.6, 4.4, 7); cone.translate(0, 4.2, 0);
-    mk(cone, pines, (t, c) => c.set(t.snow ? '#e9f3ff' : pick(['#2f9a5a', '#2a8a52', '#37a862'])), (d, t) => { d.position.set(t.x, t.y, t.z); d.scale.setScalar(t.s); d.rotation.set(0, t.x, 0); });
+    mk(cone, pines, (t, c) => c.set(t.snow ? '#e9f3ff' : pick(['#2f9a5a', '#2a8a52', '#37a862'])), (d, t) => { d.position.set(t.x, t.y, t.z); d.scale.setScalar(t.s); d.rotation.set(0, t.x, 0); }, 0.04, 0.08);
     const rock = new THREE.DodecahedronGeometry(1, 0);
-    mk(rock, rocks, (t, c) => c.set(pick(['#a6a2b5', '#9a96a8', '#b5b1c2'])), (d, t) => { d.position.set(t.x, t.y + t.s * 0.3, t.z); d.scale.set(t.s, t.s * 0.8, t.s); d.rotation.set(t.r, t.r * 2, 0); });
+    mk(rock, rocks, (t, c) => c.set(pick(['#a6a2b5', '#9a96a8', '#b5b1c2'])), (d, t) => { d.position.set(t.x, t.y + t.s * 0.3, t.z); d.scale.set(t.s, t.s * 0.8, t.s); d.rotation.set(t.r, t.r * 2, 0); }, 0, 0.06);
     const bush = new THREE.IcosahedronGeometry(1, 0);
-    mk(bush, bushes, (t, c) => c.set(pick(['#46b84a', '#3aa845', '#58c95a'])), (d, t) => { d.position.set(t.x, t.y + 0.5 * t.s, t.z); d.scale.set(t.s * 1.3, t.s, t.s * 1.3); d.rotation.set(0, t.x, 0); });
+    mk(bush, bushes, (t, c) => c.set(pick(['#46b84a', '#3aa845', '#58c95a'])), (d, t) => { d.position.set(t.x, t.y + 0.5 * t.s, t.z); d.scale.set(t.s * 1.3, t.s, t.s * 1.3); d.rotation.set(0, t.x, 0); }, 0, 0.07);
     this.bushes = bushes;
   },
   nearWall(x, z, pad) {
@@ -488,15 +504,7 @@ const World = {
     return false;
   },
   buildSky(scene, R) {
-    const sg = new THREE.SphereGeometry(1400, 24, 12);
-    const sp = sg.attributes.position; const sc = new Float32Array(sp.count * 3); const top = new THREE.Color('#3f9dff'), bot = new THREE.Color('#c8ecff'); const c = new THREE.Color();
-    for (let i = 0; i < sp.count; i++) { const t = clamp(sp.getY(i) / 1400, 0, 1); c.copy(bot).lerp(top, Math.pow(t, 0.6)); sc[i * 3] = c.r; sc[i * 3 + 1] = c.g; sc[i * 3 + 2] = c.b; }
-    sg.setAttribute('color', new THREE.BufferAttribute(sc, 3));
-    const sky = new THREE.Mesh(sg, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
-    sky.renderOrder = -10; scene.add(sky); this.sky = sky;
-    // soleil
-    const sun = new THREE.Mesh(new THREE.CircleGeometry(60, 20), new THREE.MeshBasicMaterial({ color: 0xfff6c2, fog: false }));
-    sun.position.set(500, 700, -900); sun.lookAt(0, 0, 0); scene.add(sun); this.sun = sun;
+    this.sky = Look.sky(scene);
     // nuages
     const cg = new THREE.IcosahedronGeometry(1, 0); const n = 140;
     const clouds = new THREE.InstancedMesh(cg, new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false, transparent: true, opacity: 0.92 }), n);
