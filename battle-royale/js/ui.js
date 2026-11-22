@@ -100,7 +100,7 @@ const UI = {
     } else { P.body.position.y = Math.sin(this.t * 2) * 0.02; P.arms.rotation.x = -0.15 + Math.sin(this.t * 2) * 0.03; P.legL.rotation.x = P.legR.rotation.x = 0; }
     P.arms.position.y = 1.38 + P.body.position.y;
     const gl = P.glider.visible;
-    this.lobbyCam.aspect = w / h; this.lobbyCam.position.set(0, gl ? 2.4 : 1.4, gl ? 9 : 6.2); this.lobbyCam.lookAt(0, gl ? 1.4 : 1.0, 0); this.lobbyCam.updateProjectionMatrix();
+    const far = w / h < 0.9 ? 1.6 : 1; this.lobbyCam.aspect = w / h; this.lobbyCam.position.set(0, gl ? 2.4 : 1.4, (gl ? 9 : 6.2) * far); this.lobbyCam.lookAt(0, gl ? 1.4 : 1.0, 0); this.lobbyCam.updateProjectionMatrix();
     // rendu dans la zone du canvas lobby (même renderer, viewport)
     const rect = cv.getBoundingClientRect(); const H = window.innerHeight;
     R.setScissorTest(false); R.setClearColor(0x000000, 0); R.clear();

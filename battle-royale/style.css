@@ -292,7 +292,7 @@ button.primary { background: var(--sun) !important; color: var(--ink); box-shado
   .nav button.sel { transform: none; }
   #lobbyCv { grid-column: 1; grid-row: 2; }
   #playSide { grid-column: 1; grid-row: 4; }
-  .skinTag { bottom: auto; top: 40%; }
+  .skinTag { bottom: auto; top: max(84px, calc(env(safe-area-inset-top) + 74px)); }
   #dailyMini { display: none; }
   .modes { flex-direction: row; } .mode { flex: 1; padding: 6px 8px; } .mode small { display: none; }
   #panel { top: max(70px, env(safe-area-inset-top)); left: 16px; right: 16px; width: auto; }
