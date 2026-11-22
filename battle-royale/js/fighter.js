@@ -303,7 +303,8 @@ function botShoot(f, target, dist) {
   const warm = clamp(f.ai.engageT / 1.2, 0.35, 1);
   let p = L.acc * warm * tgtMove * (target.crouch ? 0.85 : 1) * clamp(1.1 - dist / (W.range * 1.05), 0.05, 1);
   if (W.scope) p *= 1.4; if (W.pellets > 1) p = clamp(p * 2.2, 0, 0.9);
-  if (target.isPlayer && Game.time - Game.matchStart < 25) p *= 0.6;
+  if (Game.time < 100) p *= 0.6; // atterrissage : les bots visent moins bien
+  if (target.isPlayer && Game.time - Game.matchStart < 25) p *= 0.7;
   if (target.kart) p *= 0.7;
   const tp = _v2.set(target.pos.x, target.pos.y + 1.1 + (target.kart ? 0.4 : 0), target.pos.z);
   let hits = 0, headHit = false;
