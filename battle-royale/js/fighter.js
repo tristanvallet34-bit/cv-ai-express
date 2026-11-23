@@ -23,8 +23,8 @@ const Models = {
       case 'halo': gb.addGeo(new THREE.TorusGeometry(0.24, 0.04, 6, 14), M4(0, y + 0.55, 0, Math.PI / 2, 0, 0), c); break;
     }
   },
-  char(skin) {
-    if (this.cache['c_' + skin.id]) return this.cache['c_' + skin.id];
+  char(skin, pack) {
+    const ck = 'c_' + skin.id + '_' + (pack || 'classic'); if (this.cache[ck]) return this.cache[ck];
     const b = new GeoBuilder();
     b.box(0, 1.1, 0, 0.62, 0.68, 0.4, skin.shirt);
     b.box(0, 0.8, 0, 0.64, 0.12, 0.42, '#2a2433');
@@ -35,8 +35,7 @@ const Models = {
     b.addGeo(new THREE.SphereGeometry(0.045, 6, 4), M4(-0.12, 1.77, -0.365), '#1a1a2e');
     b.addGeo(new THREE.SphereGeometry(0.045, 6, 4), M4(0.12, 1.77, -0.365), '#1a1a2e');
     b.box(0, 1.6, -0.31, 0.14, 0.04, 0.03, '#7a2a3a');
-    b.box(0, 1.15, 0.3, 0.46, 0.52, 0.24, skin.pack);
-    b.box(0, 1.15, 0.43, 0.3, 0.2, 0.04, '#ffffff');
+    if (!packGeo(b, pack, skin)) { b.box(0, 1.15, 0.3, 0.46, 0.52, 0.24, skin.pack); b.box(0, 1.15, 0.43, 0.3, 0.2, 0.04, '#ffffff'); }
     this.hat(b, skin);
     const leg = new GeoBuilder();
     leg.box(0, -0.33, 0, 0.24, 0.66, 0.28, skin.pants);
@@ -47,12 +46,13 @@ const Models = {
     arms.addGeo(new THREE.BoxGeometry(0.16, 0.16, 0.55), M4(-0.2, -0.13, -0.32, 0, -0.6, 0), skin.shirt);
     arms.addGeo(new THREE.SphereGeometry(0.1, 6, 4), M4(0.02, -0.12, -0.66), skin.skin);
     const res = { body: b.build(), leg: leg.build(), arms: arms.build() };
-    this.cache['c_' + skin.id] = res; return res;
+    this.cache[ck] = res; return res;
   },
-  weapon(type, rar) {
-    const k = 'w_' + type + rar; if (this.cache[k]) return this.cache[k];
+  weapon(type, rar, wrap) {
+    const WR = COSMETICS.wraps.find(x => x.id === wrap) || COSMETICS.wraps[0];
+    const k = 'w_' + type + rar + WR.id; if (this.cache[k]) return this.cache[k];
     const W = WEAPONS[type]; const b = new GeoBuilder(); const rc = RARITY[rar].c; const L = W.len;
-    const dark = '#3a3645', mid = '#5a556a';
+    const dark = WR.a, mid = WR.b;
     if (type === 'crossbow') {
       b.box(0, 0, -0.3, 0.09, 0.1, 0.8, '#8a5a3c'); b.box(0, 0.02, -0.62, 0.9, 0.06, 0.08, dark); b.box(0, 0.06, -0.3, 0.02, 0.02, 0.7, rc);
       b.box(0, -0.1, -0.05, 0.07, 0.18, 0.1, dark); b.box(0, 0.06, -0.7, 0.04, 0.04, 0.3, '#d9d2c0');
@@ -179,6 +179,8 @@ class Fighter {
     this.name = o.name; this.team = o.team; this.isPlayer = !!o.isPlayer; this.isBot = !o.isPlayer;
     this.skin = SKINS.find(s => s.id === o.skin) || SKINS[0];
     this.gliderDef = GLIDERS.find(g => g.id === o.glider) || GLIDERS[0];
+    this.pack = o.pack || 'classic'; this.wrap = o.wrap || 'none'; this.emoteId = o.emote || 'dance';
+    this.trailDef = COSMETICS.trails.find(t => t.id === o.trail && t.c) || null;
     this.pos = new THREE.Vector3(); this.vel = new THREE.Vector3(); this.vy = 0;
     this.yaw = 0; this.pitch = 0; this.hp = 100; this.sh = 0; this.alive = true;
     this.slots = [null, null, null, null, null]; this.cur = 0;
@@ -192,7 +194,7 @@ class Fighter {
     this.createMesh();
   }
   createMesh() {
-    const g = Models.char(this.skin);
+    const g = Models.char(this.skin, this.pack);
     const root = new THREE.Group();
     const mat = this.mat = Models.mat.clone(); mat.emissive = new THREE.Color(0, 0, 0);
     const body = new THREE.Mesh(g.body, mat); body.castShadow = true; root.add(body);
@@ -213,10 +215,10 @@ class Fighter {
   get eyeY() { return this.pos.y + (this.crouch ? 1.25 : 1.65); }
   refreshGun() {
     const w = this.weapon; const it = this.item;
-    const key = w ? w.w + w.rar : it ? 'c' + it.c : '';
+    const key = w ? w.w + w.rar + this.wrap : it ? 'c' + it.c : '';
     if (key === this.gunKey) return; this.gunKey = key;
     const gun = this.parts.gun;
-    if (w) { gun.geometry = Models.weapon(w.w, w.rar); gun.visible = true; gun.position.set(0.16, -0.12, -0.5); }
+    if (w) { gun.geometry = Models.weapon(w.w, w.rar, this.wrap); gun.visible = true; gun.position.set(0.16, -0.12, -0.5); }
     else if (it && it.kind === 'cons') { gun.geometry = Models.consumable(it.c); gun.visible = true; gun.position.set(0.1, -0.12, -0.6); }
     else gun.visible = false;
     if (gun.userData.outline) { Look.onormal(gun.geometry); gun.userData.outline.geometry = gun.geometry; }
@@ -455,7 +457,7 @@ function eliminate(t, att, wtype, head) {
   if (att && att !== t) {
     att.kills++;
     txt = `<b class="${att.isPlayer ? 'me' : att.team === Game.playerTeam ? 'ally' : ''}">${att.name}</b> ${head ? '🎯' : '›'} <b class="${t.isPlayer ? 'me' : t.team === Game.playerTeam ? 'ally' : ''}">${t.name}</b> <i>${wn || ''}</i>`;
-    if (att.isPlayer) { Game.stat('kills', 1); if (wtype === 'sniper') Game.stat('sniperk', 1); if (wtype === 'shotgun') Game.stat('shotgunk', 1); HUD.killBanner(t.name, att.kills); Sfx.kill(); Haptic.play('kill'); Announcer.onPlayerKill(att.kills); Game.hitStop(); }
+    if (att.isPlayer) { Game.stat('kills', 1); if (wtype === 'sniper') Game.stat('sniperk', 1); if (wtype === 'shotgun') Game.stat('shotgunk', 1); if (wtype === 'piano') Game.stat('piano', 1); if (t.isBoss) Game.stat('boss', 1); HUD.killBanner(t.name, att.kills); Sfx.kill(); Haptic.play('kill'); Announcer.onPlayerKill(att.kills); Game.hitStop(); }
   } else if (wtype === 'storm') txt = `<b class="${t.isPlayer ? 'me' : ''}">${t.name}</b> a été emporté·e par la tempête`;
   else txt = `<b class="${t.isPlayer ? 'me' : ''}">${t.name}</b> est tombé·e`;
   HUD.feed(txt);

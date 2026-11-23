@@ -69,7 +69,7 @@ const Events = {
   buy(i) {
     const p = Game.player, o = this.offers[i]; if (!o || o.sold) return;
     if ((p.coins || 0) < o.price) { Sfx.tone(200, 0.2, 0.2, 'square'); HUD.message('Pas assez de pièces', 1.2); return; }
-    p.coins -= o.price; if (o.item.kind !== 'allammo') o.sold = true;
+    p.coins -= o.price; Game.stat('buy', 1); if (o.item.kind !== 'allammo') o.sold = true;
     if (o.item.kind === 'allammo') { for (const a in p.ammo) p.ammo[a] += a === 'rockets' ? 4 : a === 'shells' ? 15 : 40; Sfx.pickup(); }
     else { const it = Game.makeLoot(Object.assign({}, o.item, o.item.kind === 'weapon' ? { mag: WEAPONS[o.item.w].mag } : {}), p.pos.x, p.pos.z); if (!Game.pickup(p, it, false)) HUD.message('Objet posé à tes pieds', 1.2); }
     Sfx.chest(); HUD.lastInv = ''; this.openShop(this.shopOpen);
@@ -80,7 +80,7 @@ const Events = {
     const b = V.bld, G = Game;
     const items = [G.rollWeapon(4), G.rollWeapon(4), { kind: 'weapon', w: 'rocket', rar: 4, mag: 1 }, { kind: 'gag', g: pick(['piano', 'anvil']) }, { kind: 'coins', n: 60 }, { kind: 'cons', c: 'shieldB', n: 3 }, { kind: 'ammo', a: 'rockets', n: 6 }, { kind: 'ammo', a: 'medium', n: 60 }];
     items.forEach((d, i) => { const a = i / items.length * TAU; G.makeLoot(d, b.cx + Math.cos(a) * 3, b.cz + Math.sin(a) * 3); });
-    if (f.isPlayer) { HUD.message('💰 Coffre-fort ouvert ! Le butin est à toi', 3); Sfx.win(); Haptic.play('streak'); }
+    if (f.isPlayer) { Game.stat('vault', 1); HUD.message('💰 Coffre-fort ouvert ! Le butin est à toi', 3); Sfx.win(); Haptic.play('streak'); }
     else if (dist2(f.pos.x, f.pos.z, G.player.pos.x, G.player.pos.z) < 120 * 120) HUD.message('Quelqu\'un a ouvert le coffre-fort !', 2.5);
     Sfx.tone(120, 1.2, 0.3, 'sawtooth', 0.5);
   },

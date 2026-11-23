@@ -70,7 +70,7 @@ const Gags = {
       }
     } else if (g === 'balloon') { f.floatT = 7; f.onGround = false; Sfx.tone(300, 0.6, 0.2, 'sine', 3); }
     else if (g === 'box') { f.boxT = 30; f.boxGrace = 0.6; f.crouch = false; Sfx.noise(0.2, 800, 0.15); }
-    if (f.isPlayer) { Haptic.play('gag'); HUD.lastInv = ''; }
+    if (f.isPlayer) { Haptic.play('gag'); HUD.lastInv = ''; Game.stat('gag', 1); }
     f.gag.n--; if (f.gag.n <= 0) f.gag = null;
     return true;
   },

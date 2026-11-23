@@ -387,3 +387,14 @@ body:not(.touch) .btns .gag { display: grid !important; right: auto; left: calc(
 #teamScore { position: absolute; left: 50%; top: calc(40 * var(--u)); transform: translateX(-50%); display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: calc(22 * var(--u)); text-shadow: 0 2px 0 var(--ink); background: var(--glass); padding: 2px 14px; border-radius: 12px; }
 #teamScore .t0 { color: var(--mint); } #teamScore .t1 { color: var(--pop); } #teamScore span { font-size: .6em; color: var(--mute); }
 @media (max-height: 430px) { .mode small { display: none; } }
+/* ============ v3 sprint 5 : méta ============ */
+.stars { font-size: 11px; color: var(--sun); display: flex; gap: 4px; align-items: center; }
+.stars em { font-style: normal; color: var(--ink); padding: 0 6px; border-radius: 6px; font-size: 10px; }
+.rankedTgl { display: flex; align-items: center; gap: 8px; align-self: flex-end; background: var(--glass); padding: 4px 10px; border-radius: 99px; font-size: 13px; cursor: pointer; }
+.rankedTgl input { accent-color: var(--sun); width: 16px; height: 16px; }
+.rankbox { border-radius: 16px; padding: 12px 14px; background: rgba(255,255,255,.07); border: 3px solid var(--rc); display: flex; flex-direction: column; gap: 2px; }
+.rankbox b { font-family: var(--display); font-weight: 400; font-size: 26px; color: var(--rc); }
+.rankbox span { font-size: 13px; } .rankbox small { font-size: 11px; color: var(--mute); font-weight: 600; }
+.subtabs { flex-wrap: wrap; }
+.nav { max-height: calc(100vh - 90px); overflow-y: auto; }
+@media (max-height: 430px) { .nav button { padding: 5px 10px; font-size: 12px; } }

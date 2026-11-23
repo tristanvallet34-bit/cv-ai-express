@@ -99,11 +99,13 @@ const Game = {
     // joueurs
     const n = this.mode.players, ts = this.mode.team;
     const names = BOT_NAMES.slice().sort(() => Math.random() - 0.5);
-    this.player = new Fighter({ name: Settings.name || 'Joueur', team: 0, isPlayer: true, skin: Profile.skin, glider: Profile.glider });
+    const E = Profile.equip; this.player = new Fighter({ name: Settings.name || 'Joueur', team: 0, isPlayer: true, skin: Profile.skin, glider: Profile.glider, pack: E.packs, wrap: E.wraps, trail: E.trails, emote: E.emotes });
+    this.ranked = !!Profile.ranked && ['solo', 'duo', 'squad'].includes(modeId); if (this.ranked) this.botLevel = Meta.botLevelForRank();
     this.playerTeam = 0;
     this.fighters = [this.player]; this.bots = [];
     for (let i = 1; i < n; i++) {
-      const f = new Fighter({ name: names[i % names.length] + (i >= names.length ? i : ''), team: Math.floor(i / ts), skin: pick(SKINS).id, glider: pick(GLIDERS).id });
+      const rc = cat => Math.random() < 0.35 ? pick(COSMETICS[cat]).id : undefined;
+      const f = new Fighter({ name: names[i % names.length] + (i >= names.length ? i : ''), team: Math.floor(i / ts), skin: pick(SKINS).id, glider: pick(GLIDERS).id, pack: rc('packs'), wrap: rc('wraps'), trail: rc('trails'), emote: pick(COSMETICS.emotes).id });
       f.ai = new BotAI(f); this.fighters.push(f); this.bots.push(f);
     }
     for (const f of this.fighters) { f.input = { dx: 0, dz: 0, speed: 6, jump: false }; this.dynGroup.add(f.mesh); f.mesh.visible = false; }
@@ -224,7 +226,7 @@ const Game = {
   pickup(f, it, auto) {
     if (it.taken) return false;
     if (it.kind === 'ammo') { f.ammo[it.a] = Math.min(AMMO[it.a].max, f.ammo[it.a] + it.n); }
-    else if (it.kind === 'coins') { f.coins = (f.coins || 0) + it.n; if (f.isPlayer) Sfx.tone(1320, 0.08, 0.15, 'square'); }
+    else if (it.kind === 'coins') { f.coins = (f.coins || 0) + it.n; if (f.isPlayer) { Sfx.tone(1320, 0.08, 0.15, 'square'); this.stat('coins', it.n); } }
     else if (it.kind === 'key') { f.hasKey = true; if (f.isPlayer) { HUD.message('🔑 Tu as la <b>clé du coffre-fort</b> ! Il est au Centre-Ville', 3.5); Announcer.say('Clé trouvée !', 'gold'); } }
     else if (it.kind === 'cons') {
       const left = f.addCons(it.c, it.n);
@@ -465,12 +467,14 @@ const Game = {
     const prog = { kills: p.kills, chests: this.matchStats.chests, damage: this.matchStats.damage, heal: this.matchStats.heal, top10: place <= 10 ? 1 : 0, head: this.matchStats.head, survive: survived, sniperk: this.matchStats.sniperk, shotgunk: this.matchStats.shotgunk, drive: this.matchStats.drive };
     for (const c of Profile.daily.list) { if (c.done) continue; c.prog = Math.min(c.n, c.prog + (prog[c.id] || 0)); if (c.prog >= c.n) { c.done = true; chXp += c.xp; done.push(c.text); } }
     if (chXp) xp['défis'] = chXp;
+    const meta = Meta.onMatchEnd({ win, place, kills: p.kills, ranked: this.ranked }, this.matchStats);
+    if (meta.qxp) xp['quêtes'] = meta.qxp;
     const total = Object.values(xp).reduce((a, b) => a + b, 0);
     const before = Profile.lvl; Profile.xp += total;
-    while (Profile.xp >= XP_FOR(Profile.lvl)) { Profile.xp -= XP_FOR(Profile.lvl); Profile.lvl++; }
+    while (Profile.xp >= XP_FOR(Profile.lvl)) { Profile.xp -= XP_FOR(Profile.lvl); Profile.lvl++; Profile.stars += 50; meta.stars += 50; }
     Profile.history.unshift({ d: Date.now(), mode: this.modeId, place, kills: p.kills, dmg: Math.round(this.matchStats.damage) }); Profile.history = Profile.history.slice(0, 20);
     saveProfile();
-    UI.showEnd({ win, place, kills: p.kills, dmg: Math.round(this.matchStats.damage), survived, xp, total, lvlUp: Profile.lvl > before, lvl: Profile.lvl, done, players: this.mode.players, teams: this.mode.team });
+    UI.showEnd({ win, place, kills: p.kills, dmg: Math.round(this.matchStats.damage), survived, xp, total, lvlUp: Profile.lvl > before, lvl: Profile.lvl, done: done.concat(meta.lines), stars: meta.stars, rankLine: meta.rankLine, players: this.mode.players, teams: this.mode.team });
   },
   quitToLobby() {
     this.phase = 'lobby'; this.ended = true; this.cleanup(); this.stormMesh.visible = false; if (this.busMesh) this.busMesh.visible = false;
@@ -548,7 +552,7 @@ const Game = {
       const rev = this.mates(f).find(m => m.alive && !m.knocked && m.reviving === f && dist2(m.pos.x, m.pos.z, f.pos.x, f.pos.z) < 2.6 * 2.6);
       const mate = rev; const revRate = rev ? 1 : 0;
       f.reviveT = revRate ? f.reviveT + dt : Math.max(0, f.reviveT - dt);
-      if (f.reviveT >= 4) { revive(f); if (mate) mate.reviving = null; }
+      if (f.reviveT >= 4) { revive(f); if (mate) { mate.reviving = null; if (mate.isPlayer) this.stat('revive', 1); } }
     }
   },
   updateBus(dt) {
@@ -835,6 +839,7 @@ const Game = {
     if (f.state === 'fall' || f.state === 'glide') {
       const gl = f.state === 'glide';
       const hs = gl ? 15 : 17;
+      if (f.trailDef && Math.random() < 0.5 && dist2(f.pos.x, f.pos.z, this.camPos.x, this.camPos.z) < 90 * 90) Effects.burst(_v1.set(f.pos.x, f.pos.y + 1.2, f.pos.z), pick(f.trailDef.c), 1, 1, 0.9, 0.2);
       if (f.isPlayer) { this.windT -= dt; if (this.windT <= 0) { this.windT = 0.22; Sfx.wind(gl ? 0.3 : 1); } }
       const dive = f.isPlayer && !gl && this.camPitch < -0.7;
       f.vel.x = lerp(f.vel.x, inp.dx * hs * (dive ? 0.7 : 1), 1 - Math.exp(-3 * dt)); f.vel.z = lerp(f.vel.z, inp.dz * hs * (dive ? 0.7 : 1), 1 - Math.exp(-3 * dt));
@@ -917,7 +922,7 @@ const Game = {
       P.arms.position.y = 1.38 + P.body.position.y;
       P.arms.rotation.x = (f.using || f.reviving ? -0.6 : f.reloadT > 0 ? -0.5 + Math.sin(this.time * 12) * 0.1 : f.pitch * 0.8) + f.kick;
       if (f.slideT > 0) { P.body.rotation.x = 0.45; P.body.position.y = -0.55; P.legL.rotation.x = -1.3; P.legR.rotation.x = -1.0; P.legL.position.y = P.legR.position.y = 0.4; P.arms.position.y = 0.85; }
-      if (f.emoteT > 0) { P.body.position.y = Math.abs(Math.sin(this.time * 9)) * 0.35; P.arms.rotation.x = Math.sin(this.time * 9) * 1.2 + 1.5; m.rotation.y = f.yaw + this.time * 4; }
+      if (f.emoteT > 0) animateEmote(f, P, this.time, m);
     }
     P.sh.visible = QUALITY[this.quality].blob && d2 < 50 * 50;
     if (P.sh.visible) { P.sh.position.y = World.ground(f.pos.x, f.pos.z, f.pos.y) - f.pos.y + 0.05; }

@@ -67,6 +67,7 @@ const UI = {
     $('lobbyCv').addEventListener('pointerdown', e => { this.drag = { x: e.clientX }; });
     window.addEventListener('pointermove', e => { if (this.drag && Game.phase === 'lobby') { this.charRot += (e.clientX - this.drag.x) * 0.01; this.drag.x = e.clientX; } });
     window.addEventListener('pointerup', () => this.drag = null);
+    $('rankedTgl').addEventListener('change', e => { Profile.ranked = e.target.checked; saveProfile(); Sfx.click(); });
     $('danceBtn').addEventListener('click', () => { this.danceT = 3; Sfx.init(); [523, 659, 784, 659, 523].forEach((f, i) => setTimeout(() => Sfx.tone(f, 0.15, 0.15, 'square'), i * 120)); });
   },
   // ---------- scène 3D du lobby ----------
@@ -85,7 +86,7 @@ const UI = {
   },
   setLobbyChar() {
     if (this.lobbyChar) this.lobbyScene.remove(this.lobbyChar.mesh);
-    const f = new Fighter({ name: 'preview', team: 0, isPlayer: true, skin: Profile.skin, glider: Profile.glider });
+    const E = Profile.equip; const f = new Fighter({ name: 'preview', team: 0, isPlayer: true, skin: Profile.skin, glider: Profile.glider, pack: E.packs, wrap: E.wraps, emote: E.emotes });
     f.slots[0] = { kind: 'weapon', w: 'ar', rar: 4, mag: 30 }; f.refreshGun();
     this.lobbyChar = f; this.lobbyScene.add(f.mesh);
     f.parts.glider.visible = this.lockerTab === 'gliders' && this.tab === 'locker';
@@ -107,9 +108,9 @@ const UI = {
     const f = this.lobbyChar, Pp = f.parts;
     if (!this.drag) this.charRot += dt * 0.35;
     f.mesh.rotation.y = this.charRot;
+    f.mesh.rotation.x = 0; Pp.body.rotation.z = 0; Pp.body.rotation.x = 0;
     if (this.danceT > 0) {
-      this.danceT -= dt; Pp.body.position.y = Math.abs(Math.sin(this.t * 9)) * 0.3; Pp.arms.rotation.x = Math.sin(this.t * 9) * 1.2 + 1.4;
-      Pp.legL.rotation.x = Math.sin(this.t * 9) * 0.6; Pp.legR.rotation.x = -Math.sin(this.t * 9) * 0.6; f.mesh.rotation.y += Math.sin(this.t * 4) * 0.5;
+      this.danceT -= dt; f.yaw = this.charRot; animateEmote(f, Pp, this.t, f.mesh); f.mesh.rotation.y = this.charRot + (f.mesh.rotation.y - f.yaw);
     } else { Pp.body.position.y = Math.sin(this.t * 2) * 0.02; Pp.arms.rotation.x = -0.15 + Math.sin(this.t * 2) * 0.03; Pp.legL.rotation.x = Pp.legR.rotation.x = 0; }
     Pp.arms.position.y = 1.38 + Pp.body.position.y;
     const gl = Pp.glider.visible;
@@ -133,6 +134,9 @@ const UI = {
     const need = XP_FOR(Profile.lvl);
     $('lvlNum').textContent = Profile.lvl; $('xpFill').style.width = (Profile.xp / need * 100) + '%';
     $('xpTxt').textContent = Profile.xp + ' / ' + need + ' XP'; $('pName').textContent = Settings.name;
+    const rk = RANKS[Meta.rankTier(Profile.rank.pts)];
+    $('starsTxt').textContent = Profile.stars; $('rankTag').textContent = rk.n; $('rankTag').style.background = rk.c;
+    $('rankedTgl').checked = !!Profile.ranked;
     $('dailyMini').innerHTML = Profile.daily.list.map(c => `<div class="dm ${c.done ? 'done' : ''}"><span>${c.text}</span><i style="--p:${Math.min(1, c.prog / c.n)}"></i></div>`).join('');
     const sk = SKINS.find(s => s.id === Profile.skin); $('skinName').textContent = sk ? sk.n : '';
   },
@@ -153,10 +157,19 @@ const UI = {
     if (tab === 'stats') { title.textContent = 'Carrière'; this.renderStats(body); }
     if (tab === 'settings') { title.textContent = 'Paramètres'; this.renderSettings(body); }
     if (tab === 'help') { title.textContent = 'Comment jouer'; this.renderHelp(body); }
+    if (tab === 'shop') { title.textContent = 'Boutique d\'étoiles'; this.renderShop(body); }
+    if (tab === 'awards') { title.textContent = 'Succès & classé'; this.renderAwards(body); }
     this.setLobbyChar();
   },
   renderLocker(body) {
-    const tabs = `<div class="subtabs"><button class="${this.lockerTab === 'skins' ? 'sel' : ''}" data-lt="skins">Tenues</button><button class="${this.lockerTab === 'gliders' ? 'sel' : ''}" data-lt="gliders">Planeurs</button></div>`;
+    const lt = [['skins', 'Tenues'], ['gliders', 'Planeurs']].concat(Object.entries(COS_TABS));
+    const tabs = `<div class="subtabs">${lt.map(([k, n]) => `<button class="${this.lockerTab === k ? 'sel' : ''}" data-lt="${k}">${n}</button>`).join('')}</div>`;
+    if (COSMETICS[this.lockerTab]) { const cat = this.lockerTab;
+      body.innerHTML = tabs + '<div class="grid">' + COSMETICS[cat].map(it => { const own = Meta.owns(cat, it.id), eq = Profile.equip[cat] === it.id; const sw = it.c || (it.a ? [it.a, it.b] : ['#2ee6c8', '#bd63ff']);
+        return `<button class="card ${eq ? 'sel' : ''} ${own ? '' : 'locked'}" data-id="${it.id}"><div class="sw">${[].concat(sw).slice(0, 3).map(c => `<i style="background:${c}"></i>`).join('')}</div><b>${it.n}</b><small>${eq ? 'Équipé' : own ? 'Équiper' : '★ ' + it.price + ' · boutique'}</small></button>`; }).join('') + '</div>';
+      body.querySelectorAll('[data-lt]').forEach(b => b.addEventListener('click', () => { this.lockerTab = b.dataset.lt; Sfx.click(); this.renderLocker(body); this.setLobbyChar(); }));
+      body.querySelectorAll('.card').forEach(b => b.addEventListener('click', () => { const id = b.dataset.id; if (!Meta.owns(cat, id)) { if (Meta.buy(cat, id)) { Sfx.chest(); } else { Sfx.tone(200, 0.15, 0.2, 'square'); return; } } Profile.equip[cat] = id; saveProfile(); Sfx.pickup(); this.renderLocker(body); this.setLobbyChar(); this.renderTop(); if (cat === 'emotes') this.danceT = 3; }));
+      return; }
     const list = this.lockerTab === 'skins' ? SKINS : GLIDERS; const cur = this.lockerTab === 'skins' ? Profile.skin : Profile.glider;
     body.innerHTML = tabs + '<div class="grid">' + list.map(s => {
       const locked = Profile.lvl < s.lvl; const sw = this.lockerTab === 'skins' ? [s.shirt, s.pants, s.hatc] : [s.a, s.b, '#ffffff'];
@@ -173,7 +186,8 @@ const UI = {
     const rewards = {};
     SKINS.forEach(s => { if (s.lvl > 1) rewards[s.lvl] = (rewards[s.lvl] || []).concat({ t: 'Tenue', n: s.n, c: s.shirt }); });
     GLIDERS.forEach(g => { if (g.lvl > 1) rewards[g.lvl] = (rewards[g.lvl] || []).concat({ t: 'Planeur', n: g.n, c: g.a }); });
-    let html = `<p class="lead">Gagne de l'XP en jouant (éliminations, survie, coffres, défis) pour débloquer des récompenses. Tu es au <b>niveau ${Profile.lvl}</b>.</p><div class="pass">`;
+    const se = Meta.season();
+    let html = `<p class="lead"><b style="color:var(--sun)">Saison ${se.n} — ${se.name}</b> · se termine dans ${se.days} j. Chaque niveau rapporte aussi <b>50 ★</b>.</p><p class="lead">Gagne de l'XP en jouant (éliminations, survie, coffres, défis) pour débloquer des récompenses. Tu es au <b>niveau ${Profile.lvl}</b>.</p><div class="pass">`;
     for (let l = 2; l <= 30; l++) {
       const r = rewards[l]; const got = Profile.lvl >= l;
       html += `<div class="tier ${got ? 'got' : ''} ${l === Profile.lvl + 1 ? 'next' : ''}"><em>${l}</em>${r ? r.map(x => `<div class="rw"><i style="background:${x.c}"></i><span><small>${x.t}</small>${x.n}</span></div>`).join('') : `<div class="rw"><i class="xpi"></i><span><small>Badge</small>Étoile de palier ${l}</span></div>`}</div>`;
@@ -184,7 +198,10 @@ const UI = {
   renderDaily(body) {
     ensureDaily();
     const h = new Date(); const left = 24 - h.getHours();
-    body.innerHTML = `<p class="lead">Trois nouveaux défis chaque jour. Nouveaux défis dans environ ${left} h.</p>` + Profile.daily.list.map(c => `<div class="chal ${c.done ? 'done' : ''}"><div><b>${c.text}</b><small>${c.done ? 'Terminé ✔' : Math.floor(c.prog) + ' / ' + c.n}</small></div><div class="bar"><i style="width:${Math.min(100, c.prog / c.n * 100)}%"></i></div><span class="xp">+${c.xp} XP</span></div>`).join('');
+    const row = (c, rw) => `<div class="chal ${c.done ? 'done' : ''}"><div><b>${c.text}</b><small>${c.done ? 'Terminé ✔' : Math.floor(c.prog) + ' / ' + c.n}</small></div><div class="bar"><i style="width:${Math.min(100, c.prog / c.n * 100)}%"></i></div><span class="xp">${rw}</span></div>`;
+    Meta.ensureWeekly();
+    body.innerHTML = `<p class="lead">Trois nouveaux défis chaque jour. Nouveaux défis dans environ ${left} h.</p>` + Profile.daily.list.map(c => row(c, '+' + c.xp + ' XP')).join('')
+      + `<h4>Quêtes de la semaine</h4>` + Profile.weekly.list.map(c => row(c, '+' + c.xp + ' XP<br>+' + c.stars + ' ★')).join('');
   },
   renderStats(body) {
     const S = Profile.stats; const kd = S.deaths ? (S.kills / S.deaths).toFixed(2) : S.kills.toFixed(2);
@@ -233,6 +250,19 @@ const UI = {
     if (k === 'music') { Sfx.musicOn = Settings.music; Music.setEnabled(Settings.music); if (Game.phase === 'lobby') Sfx.startMusic(); }
     if (k === 'name' || k === 'botLevel') { this.renderTop(); this.renderModes(); }
   },
+  renderShop(body) {
+    const items = Meta.shopToday(); const h = 24 - new Date().getHours();
+    body.innerHTML = `<p class="lead">Tu as <b style="color:var(--sun)">${Profile.stars} ★</b>. Gagne des étoiles en jouant (éliminations, classement, quêtes, succès). La boutique change dans ${h} h. Aucun achat réel.</p><div class="grid">` + items.map(({ cat, it }) => { const own = Meta.owns(cat, it.id); const sw = it.c || (it.a ? [it.a, it.b] : ['#2ee6c8', '#bd63ff']);
+      return `<button class="card ${own ? 'sel' : ''}" data-cat="${cat}" data-id="${it.id}"><div class="sw">${[].concat(sw).slice(0, 3).map(c => `<i style="background:${c}"></i>`).join('')}</div><small>${COS_TABS[cat]}</small><b>${it.n}</b><small>${own ? 'Possédé' : '★ ' + it.price}</small></button>`; }).join('') + '</div>';
+    body.querySelectorAll('.card').forEach(b => b.addEventListener('click', () => { const ok = Meta.buy(b.dataset.cat, b.dataset.id); if (ok) { Sfx.chest(); this.renderShop(body); this.renderTop(); this.setLobbyChar(); } else Sfx.tone(200, 0.15, 0.2, 'square'); }));
+  },
+  renderAwards(body) {
+    const R = Profile.rank, t = Meta.rankTier(R.pts), nx = RANKS[t + 1];
+    let html = `<div class="rankbox" style="--rc:${RANKS[t].c}"><b>${RANKS[t].n}</b><span>${R.pts} pts${nx ? ' · ' + (nx.pts - R.pts) + ' pts avant ' + nx.n : ''}</span><small>Active « Classé » à côté de JOUER (Solo, Duo, Escouade). Les bots deviennent plus forts à chaque rang.</small></div>`;
+    const n = ACHIEVEMENTS.filter(a => Profile.ach[a.id]).length;
+    html += `<h4>Succès (${n}/${ACHIEVEMENTS.length}) · 100 ★ chacun</h4><div class="grid">` + ACHIEVEMENTS.map(a => `<div class="card ${Profile.ach[a.id] ? 'sel' : 'locked'}"><b>${Profile.ach[a.id] ? '🏆 ' : ''}${a.n}</b><small>${a.d}</small></div>`).join('') + '</div>';
+    body.innerHTML = html;
+  },
   renderHelp(body) {
     body.innerHTML = `<div class="help">
       <div><h4>📱 Sur téléphone</h4><p><b>Côté gauche</b> : glisse pour te déplacer (pousse à fond vers l'avant pour sprinter).<br><b>Côté droit</b> : glisse pour tourner la caméra.<br><b>Bouton rouge</b> : tirer — tu peux le faire glisser pour viser en même temps.<br>Les autres boutons : viser, sauter, s'accroupir, recharger, soigner, ramasser.</p></div>
@@ -266,7 +296,7 @@ const UI = {
     $('endPlace').innerHTML = r.win ? '<span>#1</span>VICTOIRE !' : `<span>#${r.place}</span>${r.place <= 5 ? 'Presque !' : r.place <= 10 ? 'Top 10 !' : 'Éliminé·e'}`;
     $('endSub').textContent = Game.mode.rumble ? `Mêlée générale · ${Game.teamKills[0]} à ${Game.teamKills[1]}` : `sur ${r.teams > 1 ? r.players / r.teams + ' équipes' : r.players + ' joueurs'}`;
     $('endStats').innerHTML = [['Éliminations', r.kills], ['Dégâts', r.dmg], ['Survie', Math.floor(r.survived) + ' min ' + Math.round((r.survived % 1) * 60) + ' s']].map(([k, v]) => `<div><small>${k}</small><b>${v}</b></div>`).join('');
-    $('endXp').innerHTML = Object.entries(r.xp).filter(([, v]) => v > 0).map(([k, v]) => `<div><span>${k[0].toUpperCase() + k.slice(1)}</span><b>+${v}</b></div>`).join('') + `<div class="tot"><span>Total</span><b>+${r.total} XP</b></div>` + (r.lvlUp ? `<div class="lvlup">NIVEAU ${r.lvl} ATTEINT !</div>` : '') + r.done.map(d => `<div class="chd">✔ Défi : ${d}</div>`).join('');
+    $('endXp').innerHTML = Object.entries(r.xp).filter(([, v]) => v > 0).map(([k, v]) => `<div><span>${k[0].toUpperCase() + k.slice(1)}</span><b>+${v}</b></div>`).join('') + `<div class="tot"><span>Total</span><b>+${r.total} XP</b></div>` + (r.lvlUp ? `<div class="lvlup">NIVEAU ${r.lvl} ATTEINT !</div>` : '') + r.done.map(d => `<div class="chd">${d.startsWith('✔') || d.startsWith('🏆') ? d : '✔ Défi : ' + d}</div>`).join('') + `<div class="tot"><span>Étoiles</span><b>+${r.stars || 0} ★</b></div>` + (r.rankLine ? `<div class="chd">${r.rankLine}</div>` : '');
     $('endWatch').hidden = r.win || !Game.fighters.some(f => f.alive && !f.isPlayer);
     if (!Game.spectating) Game.spectating = Game.fighters.find(f => f.alive) || null;
   },
