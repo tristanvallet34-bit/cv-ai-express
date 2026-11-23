@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1d1440">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Toon Royale</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="inlobby splashing">
+<canvas id="game"></canvas>
+<div id="touch"></div>
+
+<!-- ================= HUD ================= -->
+<div id="hud" hidden>
+  <div id="stormVig"></div>
+  <div id="lowVig"></div>
+  <div id="scope" hidden><div class="ring"></div></div>
+  <div id="xhair"><i></i><i></i><i></i><i></i><b></b></div>
+  <div id="hitmark"><i></i><i></i><i></i><i></i></div>
+  <div id="dmgInd"></div>
+  <div id="dmgLayer"></div>
+
+  <div class="tl">
+    <canvas id="minimap" width="240" height="240" aria-label="Mini-carte, touche pour agrandir"></canvas>
+    <div class="chips">
+      <span class="chip" title="Joueurs en vie"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8z"/></svg><b id="alive">50</b></span>
+      <span class="chip" title="Éliminations"><svg viewBox="0 0 24 24"><path d="M12 2C7 2 4 5.6 4 10c0 2.6 1.2 4.6 3 5.8V20h3v-2h4v2h3v-4.2c1.8-1.2 3-3.2 3-5.8 0-4.4-3-8-8-8zm-3.5 11a2 2 0 110-4 2 2 0 010 4zm7 0a2 2 0 110-4 2 2 0 010 4z"/></svg><b id="kills">0</b></span>
+      <span class="chip storm" id="stormTxt">⏱ 1:00</span>
+    </div>
+  </div>
+  <canvas id="compass" width="300" height="34"></canvas>
+  <div class="tr">
+    <button id="pauseBtn" class="mini" aria-label="Pause"><svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+    <div id="fps" hidden>60 FPS</div>
+    <div id="feed"></div>
+  </div>
+
+  <div id="centerMsg"></div>
+  <div id="killBanner"></div>
+  <div id="progress" hidden><div class="pr"></div><span id="progTxt">Rechargement</span></div>
+
+  <div class="bottom">
+    <div id="wName">Mains nues</div>
+    <div id="ammo">—</div>
+    <div class="bars">
+      <div class="bar sh"><i id="shFill"></i><span id="shTxt">0</span></div>
+      <div class="bar hp"><i id="hpFill"></i><span id="hpTxt">100</span></div>
+    </div>
+    <div id="hotbar"></div>
+  </div>
+
+  <!-- boutons tactiles -->
+  <div id="joy"><div id="joyKnob"></div></div>
+  <div class="btns">
+    <button class="b fire" id="fireBtn" data-btn="fire" aria-label="Tirer"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="2.4"/><path d="M12 1v5M12 18v5M1 12h5M18 12h5" stroke="currentColor" stroke-width="2.4"/></svg></button>
+    <button class="b ads" data-btn="ads" aria-label="Viser"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="1.6"/></svg></button>
+    <button class="b jump" data-btn="jump" aria-label="Sauter"><svg viewBox="0 0 24 24"><path d="M12 3l8 9h-5v9H9v-9H4z"/></svg></button>
+    <button class="b crouch" data-btn="crouch" aria-label="S'accroupir"><svg viewBox="0 0 24 24"><path d="M12 21l-8-9h5V3h6v9h5z"/></svg></button>
+    <button class="b reload" data-btn="reload" aria-label="Recharger"><svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 017.7 6h-2.2A6 6 0 106 12H3a9 9 0 019-8zM21 4v7h-7z" /><path d="M12 20a8 8 0 01-7.7-6h2.2A6 6 0 1018 12h3a9 9 0 01-9 8zM3 20v-7h7z"/></svg></button>
+    <button class="b heal" data-btn="heal" aria-label="Soin rapide"><svg viewBox="0 0 24 24"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/></svg></button>
+    <button class="b emote" data-btn="emote" aria-label="Danse"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="10" r="1.4"/><circle cx="15" cy="10" r="1.4"/><path d="M7.5 14c1.2 2 2.7 3 4.5 3s3.3-1 4.5-3" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+    <button class="b interact" id="interactBtn" data-btn="interact" hidden>Ramasser</button>
+  </div>
+  <button class="b fireL" id="fireBtnL" data-btn="fireL" aria-label="Tirer (gauche)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="2.4"/></svg></button>
+  <button class="big" id="jumpBus" data-btn="jumpBus" hidden>SAUTER DU BUS</button>
+  <button class="big alt" id="glideBtn" data-btn="glide" hidden>DÉPLOYER LE PLANEUR</button>
+  <button class="big alt" id="exitKart" hidden>DESCENDRE DU KART</button>
+
+  <div id="bigmap" hidden><div class="bm"><canvas id="bigmapCv" width="720" height="720"></canvas><p>Touche la carte pour poser un repère · touche à côté pour fermer</p></div></div>
+</div>
+
+<!-- ================= LOBBY ================= -->
+<div id="lobby" hidden>
+  <header class="top">
+    <div class="brand"><span>TOON</span><span>ROYALE</span></div>
+    <div class="prof">
+      <div class="lvl"><small>NIV.</small><b id="lvlNum">1</b></div>
+      <div class="xp"><b id="pName">Joueur</b><div class="xpb"><i id="xpFill"></i></div><small id="xpTxt">0 XP</small></div>
+    </div>
+    <button id="fsBtn" class="mini" aria-label="Plein écran"><svg viewBox="0 0 24 24"><path d="M3 9V3h6v2H5v4zm12-6h6v6h-2V5h-4zM3 15h2v4h4v2H3zm16 0h2v6h-6v-2h4z"/></svg></button>
+  </header>
+  <nav class="nav">
+    <button data-tab="play" class="sel"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Jouer</button>
+    <button data-tab="locker"><svg viewBox="0 0 24 24"><path d="M9 3l3 2 3-2 5 3-2 4-2-1v12H8V9L6 10 4 6z"/></svg>Casier</button>
+    <button data-tab="pass"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z"/></svg>Passe</button>
+    <button data-tab="daily"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8 2 2-10 10-5-5zM3 5h11v2H5v12h12v-6h2v8H3z"/></svg>Défis</button>
+    <button data-tab="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10h4v10zm6 0V4h4v16zm6 0v-7h4v7z"/></svg>Carrière</button>
+    <button data-tab="settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 000-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 00-1.7-1L15 3h-4l-.4 2.9a7.4 7.4 0 00-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 000 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 001.7 1L11 21h4l.4-2.9a7.4 7.4 0 001.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 110-7 3.5 3.5 0 010 7z"/></svg>Réglages</button>
+    <button data-tab="help"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 17h-2v-2h2zm2.1-7.7l-.9.9c-.7.7-1.2 1.3-1.2 2.8h-2v-.5c0-1.1.5-2.1 1.2-2.8l1.2-1.3A2 2 0 0012 7a2 2 0 00-2 2H8a4 4 0 118 0c0 .9-.4 1.7-.9 2.3z"/></svg>Aide</button>
+  </nav>
+  <div id="lobbyCv"></div>
+  <div class="skinTag"><b id="skinName">Recrue Pop</b><button id="danceBtn">Danser</button></div>
+  <aside id="playSide">
+    <div class="modes">
+      <button class="mode" data-mode="solo"><b>Solo</b><small>50 joueurs · chacun pour soi</small></button>
+      <button class="mode" data-mode="duo"><b>Duo</b><small>25 équipes · coéquipier IA</small></button>
+      <button class="mode" data-mode="quick"><b>Express</b><small>24 joueurs · tempête rapide</small></button>
+    </div>
+    <div id="dailyMini"></div>
+    <button id="playBtn"><span>JOUER</span><small id="botTag">Bots : Normal</small></button>
+  </aside>
+</div>
+
+<!-- panneau commun (lobby + pause) -->
+<section id="panel" hidden>
+  <div class="ph"><h2 id="panelTitle">Casier</h2><button id="panelClose" class="mini" aria-label="Fermer"><svg viewBox="0 0 24 24"><path d="M6 4l6 6 6-6 2 2-6 6 6 6-2 2-6-6-6 6-2-2 6-6-6-6z"/></svg></button></div>
+  <div id="panelBody"></div>
+</section>
+
+<div id="pause" hidden>
+  <div class="card">
+    <h2>Pause</h2>
+    <p>La partie continue autour de toi… les bots ne t'attendent pas longtemps !</p>
+    <button id="resumeBtn" class="primary">Reprendre</button>
+    <button id="pauseSettings">Paramètres</button>
+    <button id="quitBtn" class="ghost danger">Quitter la partie</button>
+  </div>
+</div>
+
+<div id="endScreen" hidden>
+  <div class="card">
+    <h1 id="endPlace"><span>#1</span>VICTOIRE !</h1>
+    <p id="endSub">sur 50 joueurs</p>
+    <div id="endStats" class="stats3"></div>
+    <div id="endXp"></div>
+    <div class="row">
+      <button id="endWatch">Regarder</button>
+      <button id="endAgain" class="primary">Rejouer</button>
+      <button id="endLobby">Menu</button>
+    </div>
+  </div>
+</div>
+<div id="specBar" hidden><span>Mode spectateur</span><button id="specNext">Joueur suivant</button><button id="specQuit" class="primary">Menu</button></div>
+
+<canvas id="confetti" hidden></canvas>
+<div id="splash"><div class="logo"><span>TOON</span><span>ROYALE</span></div><p id="splashTxt">Création de l'île…</p><small>Joue en paysage · avec un casque c'est encore mieux</small></div>
+<div id="loading" hidden><div class="spin"></div><p>Le Bus Volant fait le plein…</p></div>
+<div id="rotate"><svg viewBox="0 0 24 24"><path d="M16.5 2h-9A1.5 1.5 0 006 3.5v17A1.5 1.5 0 007.5 22h9a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0016.5 2zM12 20.5a1 1 0 110-2 1 1 0 010 2zM16 17H8V5h8z"/></svg><p>Toon Royale se joue<br>en mode paysage</p><small>Tourne ton téléphone</small></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/util.js"></script>
+<script src="js/data.js"></script>
+<script src="js/render.js"></script>
+<script src="js/post.js"></script>
+<script src="js/world.js"></script>
+<script src="js/fighter.js"></script>
+<script src="js/bot.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/input.js"></script>
+<script src="js/hud.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
