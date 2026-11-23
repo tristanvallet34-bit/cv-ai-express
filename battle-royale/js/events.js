@@ -62,17 +62,23 @@ const Events = {
     this.shopOpen = m; const el = $('shop'); el.hidden = false; if (document.pointerLockElement) document.exitPointerLock();
     const p = Game.player;
     el.querySelector('.coins').textContent = p.coins || 0;
-    el.querySelector('.list').innerHTML = this.offers.map((o, i) => `<button data-i="${i}" ${o.sold ? 'disabled' : ''}><span>${o.label}</span><b>${o.sold ? 'Vendu' : o.price + ' ¤'}</b></button>`).join('');
+    el.querySelector('.list').innerHTML = this.offers.map((o, i) => { const sold = (o.soldTo || []).includes('me'); return `<button data-i="${i}" ${sold ? 'disabled' : ''}><span>${o.label}</span><b>${sold ? 'Acheté' : o.price + ' ¤'}</b></button>`; }).join('');
     el.querySelectorAll('.list button').forEach(b => b.addEventListener('pointerdown', e => { e.stopPropagation(); this.buy(+b.dataset.i); }));
   },
   closeShop() { this.shopOpen = null; const el = $('shop'); if (el) el.hidden = true; },
   buy(i) {
-    const p = Game.player, o = this.offers[i]; if (!o || o.sold) return;
-    if ((p.coins || 0) < o.price) { Sfx.tone(200, 0.2, 0.2, 'square'); HUD.message('Pas assez de pièces', 1.2); return; }
-    p.coins -= o.price; Game.stat('buy', 1); if (o.item.kind !== 'allammo') o.sold = true;
+    if (Net.isClient && Net.live) { const o = this.offers[i], p = Game.player; if (!o || (o.soldTo || []).includes('me')) return; if ((p.coins || 0) < o.price) { Sfx.tone(200, 0.2, 0.2, 'square'); HUD.message('Pas assez de pièces', 1.2); return; } Net.send({ t: 'act', a: 'buy', i }); if (o.item.kind !== 'allammo') (o.soldTo = o.soldTo || []).push('me'); p.coins -= o.price; Sfx.chest(); this.openShop(this.shopOpen); return; }
+    this.buyFor(Game.player, i); this.openShop(this.shopOpen);
+  },
+  // chaque joueur peut acheter chaque article une fois (munitions : à volonté)
+  buyFor(p, i) {
+    const o = this.offers[i]; if (!o) return; const who = p.isPlayer ? 'me' : 'f' + p.nid;
+    o.soldTo = o.soldTo || []; if (o.soldTo.includes(who)) return;
+    if ((p.coins || 0) < o.price) { if (p.isPlayer) { Sfx.tone(200, 0.2, 0.2, 'square'); HUD.message('Pas assez de pièces', 1.2); } return; }
+    p.coins -= o.price; if (p.isPlayer) Game.stat('buy', 1); if (o.item.kind !== 'allammo') o.soldTo.push(who);
     if (o.item.kind === 'allammo') { for (const a in p.ammo) p.ammo[a] += a === 'rockets' ? 4 : a === 'shells' ? 15 : 40; Sfx.pickup(); }
-    else { const it = Game.makeLoot(Object.assign({}, o.item, o.item.kind === 'weapon' ? { mag: WEAPONS[o.item.w].mag } : {}), p.pos.x, p.pos.z); if (!Game.pickup(p, it, false)) HUD.message('Objet posé à tes pieds', 1.2); }
-    Sfx.chest(); HUD.lastInv = ''; this.openShop(this.shopOpen);
+    else { const it = Game.makeLoot(Object.assign({}, o.item, o.item.kind === 'weapon' ? { mag: WEAPONS[o.item.w].mag } : {}), p.pos.x, p.pos.z); if (!Game.pickup(p, it, false) && p.isPlayer) HUD.message('Objet posé à tes pieds', 1.2); }
+    if (p.isPlayer) { Sfx.chest(); HUD.lastInv = ''; }
   },
   openVault(f) {
     const V = World.vault; if (!V || V.open || !f.hasKey) return;

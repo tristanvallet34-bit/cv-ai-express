@@ -35,9 +35,10 @@ const WEAPONS = {
   crossbow: { n: 'Arbalète Hop', short: 'ARBALÈTE', ammo: 'heavy', dmg: 82, rate: 0.85, mag: 3, reload: 1.8, spread: 0.02, ads: 0.0, range: 260, pellets: 1, auto: false, head: 2.0, min: 1, max: 4, len: 0.8, sound: { f: 600, len: 0.12, vol: 0.4 }, botRange: 70, zoom: 2, projectile: 'bolt' },
   burst: { n: 'Rafale Triple', short: 'RAFALE', ammo: 'medium', dmg: 27, rate: 0.42, mag: 24, reload: 2.0, spread: 0.022, ads: 0.006, range: 190, pellets: 1, burst: 3, auto: false, head: 1.7, min: 1, max: 4, len: 0.8, sound: { f: 1500, len: 0.08, vol: 0.45 }, botRange: 70, zoom: 1.6 },
   grapple: { n: 'Grappin Boing', short: 'GRAPPIN', ammo: null, dmg: 0, rate: 0.6, mag: 4, reload: 0, spread: 0, ads: 0, range: 60, pellets: 1, auto: false, head: 1, min: 2, max: 2, len: 0.6, sound: { f: 700, len: 0.1, vol: 0.3 }, botRange: 0, zoom: 1.2, grapple: true },
+  frost: { n: 'Fusil Givrant', short: 'GIVRANT', ammo: 'medium', dmg: 22, rate: 0.2, mag: 20, reload: 2.2, spread: 0.025, ads: 0.01, range: 120, pellets: 1, auto: true, head: 1.5, min: 2, max: 4, len: 0.85, sound: { f: 2600, len: 0.12, vol: 0.4 }, botRange: 50, zoom: 1.4, frost: true },
   minigun: { n: 'Mini-Tornade', short: 'MITRAILLEUSE', ammo: 'medium', dmg: 14, rate: 0.055, mag: 80, reload: 3.6, spread: 0.06, ads: 0.045, range: 120, pellets: 1, auto: true, head: 1.3, min: 3, max: 4, len: 1.0, sound: { f: 1600, len: 0.05, vol: 0.4 }, botRange: 40, zoom: 1.2 },
 };
-const FLOOR_WEAPONS = ['pistol', 'pistol', 'smg', 'smg', 'ar', 'ar', 'ar', 'burst', 'shotgun', 'shotgun', 'sniper', 'crossbow', 'rocket', 'grapple'];
+const FLOOR_WEAPONS = ['pistol', 'pistol', 'smg', 'smg', 'ar', 'ar', 'ar', 'burst', 'shotgun', 'shotgun', 'sniper', 'crossbow', 'rocket', 'grapple', 'frost'];
 
 const CONS = {
   bandage: { n: 'Bandages', time: 2.4, hp: 15, cap: 75, stack: 15, pick: 5, c: '#ff6b6b', icon: '✚' },

@@ -1,5 +1,5 @@
 // Toon Royale — service worker : jouer hors ligne après la première visite
-const CACHE = 'toonroyale-v4';
+const CACHE = 'toonroyale-v5';
 const FILES = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
   'js/util.js', 'js/data.js', 'js/render.js', 'js/post.js', 'js/world.js', 'js/fighter.js', 'js/bot.js', 'js/effects.js', 'js/gags.js', 'js/events.js', 'js/modes.js', 'js/meta.js',
   'js/input.js', 'js/hud.js', 'js/feel.js', 'js/game.js', 'js/ui.js', 'js/net.js', 'js/main.js', 'js/feel.js',

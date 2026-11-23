@@ -73,7 +73,7 @@ const Input = {
     document.addEventListener('gesturestart', e => e.preventDefault());
     // clavier
     window.addEventListener('keydown', e => {
-      if (e.target && (e.target.tagName === 'INPUT')) return;
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) return;
       const k = e.key.toLowerCase(); if (this.keys[k]) return; this.keys[k] = true;
       const map = { ' ': 'jump', 'c': 'crouch', 'control': 'crouch', 'r': 'reload', 'e': 'interact', 'm': 'map', 'h': 'heal', 'f': 'heal', 'g': 'emote', 'v': 'ping', 't': 'gag', 'escape': 'pause', 'tab': 'map' };
       if (map[k]) { e.preventDefault(); this.press(map[k]); }

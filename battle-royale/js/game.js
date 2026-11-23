@@ -771,7 +771,7 @@ const Game = {
         if (Settings.autoPickup && it.kind === 'cons' && !it.dropped && this.pickup(p, it, true)) continue;
         if (Settings.autoPickup && it.kind === 'weapon' && p.freeSlot() >= 0 && !it.dropped) { if (this.pickup(p, it, true)) continue; }
       }
-      if (d < bd) { bd = d; best = it; label = it.kind === 'gag' ? `<small style="color:${RARITY[GAGS[it.g].rar].c}">Gag · ${GAGS[it.g].d}</small>${GAGS[it.g].n}` : it.kind === 'weapon' ? `<small style="color:${RARITY[it.rar].c}">${RARITY[it.rar].n}</small>${WEAPONS[it.w].n}` : it.kind === 'cons' ? `<small>×${it.n}</small>${CONS[it.c].n}` : `<small>×${it.n}</small>${AMMO[it.a].n}`; }
+      if (d < bd) { bd = d; best = it; label = it.kind === 'coins' ? `<small>pièces</small>${it.n} pièces` : it.kind === 'key' ? '<small>clé</small>Clé du coffre-fort' : it.kind === 'gag' ? `<small style="color:${RARITY[GAGS[it.g].rar].c}">Gag · ${GAGS[it.g].d}</small>${GAGS[it.g].n}` : it.kind === 'weapon' ? `<small style="color:${RARITY[it.rar].c}">${RARITY[it.rar].n}</small>${WEAPONS[it.w].n}` : it.kind === 'cons' ? `<small>×${it.n}</small>${CONS[it.c].n}` : `<small>×${it.n}</small>${AMMO[it.a].n}`; }
     }
     const containers = this.chests.concat(this.supplies.filter(s => s.landed));
     for (const c of containers) { if (c.open) continue; const d = dist2(p.pos.x, p.pos.z, c.pos.x, c.pos.z); if (d < bd + 1) { bd = d; best = c; label = c.isSupply ? '<small>maintenir</small>Ouvrir le ravitaillement' : '<small>maintenir</small>Ouvrir le coffre'; } }
@@ -920,7 +920,7 @@ const Game = {
     }
     if (f.kart) { this.animate(f, dt); return; }
     // au sol
-    let sp = (this.speedMul || 1) * (f.knocked ? 1.8 : f.stunT > 0 ? 0 : f.flatT > 0 ? 2.4 : f.boxT > 0 ? Math.min(inp.speed, 3) : f.floatT > 0 ? 4.5 : inp.speed);
+    let sp = (this.speedMul || 1) * (f.frozenT > 0 ? 0.55 : 1) * (f.knocked ? 1.8 : f.stunT > 0 ? 0 : f.flatT > 0 ? 2.4 : f.boxT > 0 ? Math.min(inp.speed, 3) : f.floatT > 0 ? 4.5 : inp.speed);
     const k = f.onGround ? 1 - Math.exp(-14 * dt) : 1 - Math.exp(-2.5 * dt);
     if (f.grapple) {
       const g = f.grapple; g.t -= dt; const dx = g.p.x - f.pos.x, dy = g.p.y - f.pos.y, dz = g.p.z - f.pos.z; const d = Math.hypot(dx, dy, dz);
@@ -968,7 +968,7 @@ const Game = {
     if (lod) { if (f.state === 'glide' || f.state === 'fall') P.glider.visible = f.state === 'glide'; return; }
     const near = d2 < 55 * 55;
     if (f.outl.length && f.outl[0].visible !== near) for (const o of f.outl) o.visible = near;
-    if (f.flashT > 0) { f.flashT -= dt; const k = Math.max(0, f.flashT / 0.12); f.mat.emissive.setRGB(k, k * 0.9, k * 0.9); } else if (f.mat.emissive.r) f.mat.emissive.setRGB(0, 0, 0);
+    if (f.flashT > 0) { f.flashT -= dt; const k = Math.max(0, f.flashT / 0.12); f.mat.emissive.setRGB(k, k * 0.9, k * 0.9); } else if (f.frozenT > 0) f.mat.emissive.setRGB(0.12, 0.3, 0.55); else if (f.mat.emissive.r || f.mat.emissive.b) f.mat.emissive.setRGB(0, 0, 0);
     if (f.kick > 0) f.kick = Math.max(0, f.kick - dt * 4);
     P.body.rotation.z = 0; m.rotation.x = 0;
     const hsp = f.moveAmt; f.walk += dt * hsp * 10;

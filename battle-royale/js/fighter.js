@@ -52,7 +52,7 @@ const Models = {
     const WR = COSMETICS.wraps.find(x => x.id === wrap) || COSMETICS.wraps[0];
     const k = 'w_' + type + rar + WR.id; if (this.cache[k]) return this.cache[k];
     const W = WEAPONS[type]; const b = new GeoBuilder(); const rc = RARITY[rar].c; const L = W.len;
-    const dark = WR.a, mid = WR.b;
+    let dark = WR.a, mid = WR.b; if (type === 'frost' && WR.id === 'none') { dark = '#5a7fa8'; mid = '#cfefff'; }
     if (type === 'crossbow') {
       b.box(0, 0, -0.3, 0.09, 0.1, 0.8, '#8a5a3c'); b.box(0, 0.02, -0.62, 0.9, 0.06, 0.08, dark); b.box(0, 0.06, -0.3, 0.02, 0.02, 0.7, rc);
       b.box(0, -0.1, -0.05, 0.07, 0.18, 0.1, dark); b.box(0, 0.06, -0.7, 0.04, 0.04, 0.3, '#d9d2c0');
@@ -364,7 +364,7 @@ function botShoot(f, target, dist) {
   if (!canFire(f)) return;
   const w = f.weapon, W = WEAPONS[w.w]; const L = Game.botLevel;
   muzzlePos(f, _v1);
-  const tgtMove = target.moveAmt > 0.3 ? 0.75 : 1;
+  const tgtMove = (target.moveAmt > 0.3 ? 0.75 : 1) * (f.pieT > 0 ? 0.15 : 1);
   const warm = clamp(f.ai.engageT / 1.2, 0.35, 1);
   let p = L.acc * warm * tgtMove * (target.crouch ? 0.85 : 1) * clamp(1.1 - dist / (W.range * 1.05), 0.05, 1);
   if (W.scope) p *= 1.4; if (W.pellets > 1) p = clamp(p * 2.2, 0, 0.9);
@@ -402,7 +402,7 @@ function botShoot(f, target, dist) {
 function applyDamage(t, dmg, att, head, wtype, at) {
   if (!t.alive || dmg <= 0) return;
   if (Game.godMode && t.isPlayer) return;
-  t.flashT = 0.12;
+  t.flashT = 0.12; if (wtype === 'frost') t.frozenT = 1.6;
   if (t.knocked) {
     t.bleed -= dmg * 0.8; if (att && att !== t) t.lastHitBy = att;
     if (att && att.isPlayer && at) { if (Settings.dmgNumbers) HUD.dmgNumber(at, dmg, false, false); HUD.hitmarker(false, t.bleed <= 0); Sfx.hit(false); }

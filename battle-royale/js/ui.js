@@ -227,6 +227,10 @@ const UI = {
       else if (s.t === 'text') ctl = `<input type="text" id="${id}" maxlength="14" value="${String(v).replace(/"/g, '')}">`;
       html += `<div class="set"><label for="${id}"><b>${s.n}</b>${s.d ? `<small>${s.d}</small>` : ''}</label>${ctl}</div>`;
     }
+ html += `<h4>Sauvegarde</h4><p class="lead">Ta progression est enregistrée sur cet appareil. Pour la retrouver sur un autre téléphone ou navigateur, copie ton code ici et colle-le là-bas.</p>
+      <div class="netrow"><button id="saveCopy">Copier mon code de sauvegarde</button></div>
+      <textarea id="saveCode" rows="3" placeholder="Colle ici un code TR1-…" spellcheck="false"></textarea>
+      <div class="netrow"><button id="saveLoad">Restaurer ce code</button></div><p id="saveMsg" class="lead"></p>`;
     html += `<div class="setBtns"><button id="resetSet" class="ghost">Réinitialiser les paramètres</button><button id="resetProf" class="ghost danger">Effacer ma progression</button></div><p id="confirmBox" class="lead" hidden></p>`;
     body.innerHTML = html;
     for (const s of SETTINGS_UI) {
@@ -239,6 +243,18 @@ const UI = {
         this.applySetting(s.k);
       });
     }
+    const code = $('saveCode'), msg = $('saveMsg');
+    $('saveCopy').addEventListener('click', () => {
+      const c = SaveCode.make(); code.value = c; code.select();
+      try { navigator.clipboard.writeText(c).then(() => { msg.textContent = 'Code copié. Garde-le précieusement.'; }, () => { msg.textContent = 'Code affiché ci-dessus : sélectionne-le pour le copier.'; }); } catch (e) { msg.textContent = 'Code affiché ci-dessus : sélectionne-le pour le copier.'; }
+    });
+    $('saveLoad').addEventListener('click', e => {
+      const d = SaveCode.read(code.value.trim());
+      if (!d) { msg.textContent = 'Code invalide : vérifie qu\'il est complet (il commence par TR1-).'; return; }
+      const b = e.currentTarget;
+      if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = `Remplacer ma progression par niveau ${d.p.lvl || 1} ? Appuie encore`; setTimeout(() => { delete b.dataset.armed; b.textContent = 'Restaurer ce code'; }, 4000); return; }
+      Store.set('profile', d.p); Store.set('settings', d.s); msg.textContent = 'Progression restaurée, rechargement…'; setTimeout(() => location.reload(), 600);
+    });
     $('resetSet').addEventListener('click', () => { Object.assign(Settings, SETTINGS_DEF); saveSettings(); ['quality', 'vol', 'hudScale', 'leftFire', 'music'].forEach(k => this.applySetting(k)); this.renderSettings(body); });
     $('resetProf').addEventListener('click', e => {
       const b = e.currentTarget;
@@ -247,7 +263,13 @@ const UI = {
     });
   },
   applySetting(k) {
-    if (k === 'quality') { Game.dynScale = 1; Game.applyQuality(); }
+    if (k === 'quality') {
+      Game.dynScale = 1; Game.applyQuality();
+      // le passage vers ou depuis « Économie » change les matériaux : il faut recharger
+      const box = $('confirmBox');
+      if (box && Look.toon !== (Game.resolveQuality() !== 'low')) { box.hidden = false; box.innerHTML = 'Ce changement s\'applique après un rechargement. <button id="reloadNow" class="ghost">Recharger maintenant</button>'; $('reloadNow').addEventListener('click', () => location.reload()); }
+      else if (box) box.hidden = true;
+    }
     if (k === 'vol') Sfx.setVol(Settings.vol);
     if (k === 'hudScale') Game.resize();
     if (k === 'fov' && Game.camera) { Game.camera.fov = Settings.fov; Game.camera.updateProjectionMatrix(); }

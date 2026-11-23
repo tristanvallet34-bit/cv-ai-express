@@ -150,3 +150,20 @@ function packGeo(b, id, skin) {
   }
   return false;
 }
+
+// ---------- code de sauvegarde (transfert entre appareils) ----------
+const SaveCode = {
+  sum(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16).padStart(8, '0').slice(0, 6); },
+  make() {
+    const json = JSON.stringify({ v: 1, p: Profile, s: Settings });
+    const b64 = btoa(unescape(encodeURIComponent(json)));
+    return 'TR1-' + b64 + '-' + this.sum(b64);
+  },
+  read(code) {
+    try {
+      const m = /^TR1-([A-Za-z0-9+/=]+)-([0-9a-f]{6})$/.exec(code.replace(/\s+/g, '')); if (!m || this.sum(m[1]) !== m[2]) return null;
+      const d = JSON.parse(decodeURIComponent(escape(atob(m[1])))); if (!d || !d.p || typeof d.p.lvl !== 'number') return null;
+      return d;
+    } catch (e) { return null; }
+  },
+};

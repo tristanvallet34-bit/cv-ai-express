@@ -83,7 +83,8 @@ class BotAI {
     }
     // ---- détection des ennemis ----
     if (this.target && (!this.target.alive || dist2(f.pos.x, f.pos.z, this.target.pos.x, this.target.pos.z) > (L.sight * 1.6) ** 2)) { this.target = null; this.engageT = 0; }
-    if (!this.target || Math.random() < 0.15) {
+    if (f.pieT > 0) this.target = null;
+    if (!(f.pieT > 0) && (!this.target || Math.random() < 0.15)) {
       let best = null, bd = Infinity; const sight = L.sight * (f.weapon && f.weapon.w === 'sniper' ? 1.6 : 1);
       const eye = _v1.set(f.pos.x, f.eyeY, f.pos.z);
       for (const o of G.fighters) {

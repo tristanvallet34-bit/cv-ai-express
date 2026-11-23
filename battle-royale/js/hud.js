@@ -62,6 +62,7 @@ const HUD = {
     let d = this.sounds.find(s => s.life > 0 && s.kind === kind && Math.hypot(s.x - p.x, s.z - p.z) < 6) || this.sounds.find(s => s.life <= 0) || this.sounds[0];
     d.x = p.x; d.z = p.z; d.kind = kind; d.max = d.life = kind === 'shot' ? 1.3 : 0.7; d.el.className = 'sndind ' + kind;
   },
+  pie() { const el = $('pieSplat'); el.className = ''; void el.offsetWidth; el.className = 'on'; clearTimeout(this._pie); this._pie = setTimeout(() => el.className = '', 3000); },
   damageFrom(p) { const d = this.indicators.find(i => i.life <= 0) || this.indicators[0]; d.life = 1.2; d.x = p.x; d.z = p.z; },
   slotHTML(s) {
     if (!s) return ['', ''];
@@ -235,6 +236,7 @@ const WEAPON_SVG = {
   crossbow: 'M10 11h40v3H10zM46 2l4 2v16l-4 2-2-2V4zM14 14h6v8h-6zM50 11l8 1.5L50 14z',
   burst: 'M2 8h12l4-2h26v3h16v3H44v3h-4v6h-8v-6H20l-6 5H4l4-6H2z',
   grapple: 'M14 8h26v8H14zM18 16h6v6h-6zM40 10h8l10-6v16l-10-6h-8z',
+  frost: 'M2 8h12l4-2h26v3h16v3H44v3h-6l-1 7h-6l1-7H20l-6 5H4l4-6H2zM50 2l2 4 4-2-2 4 4 2-4 1 1 4-3-3-3 3 1-4-4-1 4-2-2-4 4 2z',
   smg: 'M8 7h40v3h8v4H44l-2 3h-6l1 6h-6l-1-6h-8l-2 6h-6l2-6H8z',
   ar: 'M2 8h12l4-2h26v3h16v3H44v3h-6l-1 7h-6l1-7H20l-6 5H4l4-6H2z',
   shotgun: 'M2 9h10l6-2h40v4H40v3H22l-8 6H4l6-6H2z',

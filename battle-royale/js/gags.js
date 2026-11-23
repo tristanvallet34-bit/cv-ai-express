@@ -8,12 +8,13 @@ const GAGS = {
   anvil: { n: 'Enclume', d: 'Assomme et retire le bouclier', rar: 3, uses: 1, c: '#5a556a', svg: 'M3 6h16l-4 5h-2v4h4v3H7v-3h4v-4H8z' },
   hole: { n: 'Trou portable', d: 'Téléporte à 30 m qui marche dessus', rar: 2, uses: 2, c: '#1a1a2e', svg: 'M12 8c5 0 9 2 9 4.5S17 17 12 17s-9-2-9-4.5S7 8 12 8z' },
   balloon: { n: 'Ballon gonflable', d: 'Flotte 7 s en l\'air', rar: 2, uses: 1, c: '#ff7ad1', svg: 'M12 2a6 7 0 016 7c0 4-3 7-6 7s-6-3-6-7a6 7 0 016-7zm-1 14h2l-1 6z' },
+  pie: { n: 'Tarte à la crème', d: 'Aveugle l\'adversaire 3 s', rar: 1, uses: 3, c: '#fff3e0', svg: 'M3 13h18l-2 6H5zM4 12c0-4 4-7 8-7s8 3 8 7z' },
   box: { n: 'Boîte en carton', d: 'Invisible de loin si immobile', rar: 1, uses: 1, c: '#c8955a', svg: 'M12 2l9 5v10l-9 5-9-5V7zm0 2.3L5.5 7.8 12 11.3l6.5-3.5z' },
 };
 const GAG_LIST = Object.keys(GAGS);
 
 const Gags = {
-  traps: [], drops: [], bubbles: [], smokes: [], ropes: [],
+  traps: [], drops: [], bubbles: [], smokes: [], ropes: [], pies: [],
   init(scene) {
     this.scene = scene;
     const mk = fn => { const b = new GeoBuilder(); fn(b); return b.build(); };
@@ -23,6 +24,7 @@ const Gags = {
       banana: mk(b => { b.addGeo(new THREE.TorusGeometry(0.28, 0.07, 6, 10, Math.PI), M4(0, 0.08, 0, Math.PI / 2, 0, 0), '#ffe14a'); b.box(0.28, 0.08, 0, 0.06, 0.06, 0.1, '#6b4a2a'); }),
       hole: mk(b => { b.addGeo(new THREE.CircleGeometry(1.2, 20).rotateX(-Math.PI / 2), M4(0, 0.04, 0), '#0a0612'); b.addGeo(new THREE.RingGeometry(1.15, 1.3, 20).rotateX(-Math.PI / 2), M4(0, 0.05, 0), '#3a2a5a'); }),
       balloon: mk(b => { b.addGeo(new THREE.SphereGeometry(0.9, 14, 10), M4(0, 3.6, 0, 0, 0, 0, 1, 1.15, 1), '#ff7ad1'); b.box(0, 2.4, 0, 0.03, 1.4, 0.03, '#ffffff'); }),
+      pie: mk(b => { b.addGeo(new THREE.CylinderGeometry(0.42, 0.34, 0.16, 14), null, '#d9a05a'); b.addGeo(new THREE.SphereGeometry(0.4, 12, 6, 0, TAU, 0, Math.PI / 2), M4(0, 0.06, 0, 0, 0, 0, 1, 0.5, 1), '#fff8ec'); b.addGeo(new THREE.SphereGeometry(0.08, 6, 4), M4(0, 0.26, 0), '#e8344d'); }),
       box: mk(b => { b.box(0, 0.6, 0, 1.15, 1.2, 1.15, '#c8955a'); b.box(0, 1.21, 0, 1.17, 0.02, 0.2, '#e8c07a'); b.box(0, 0.6, -0.58, 0.5, 0.25, 0.02, '#8a5a30'); }),
       mallet: mk(b => { b.box(0, 0, -0.6, 0.08, 0.08, 1.2, '#8a5a3c'); b.addGeo(new THREE.CylinderGeometry(0.32, 0.32, 0.8, 10).rotateZ(Math.PI / 2), M4(0, 0, -1.3), '#ff4f8b'); b.addGeo(new THREE.CylinderGeometry(0.33, 0.33, 0.12, 10).rotateZ(Math.PI / 2), M4(0.3, 0, -1.3), '#ffffff'); b.addGeo(new THREE.CylinderGeometry(0.33, 0.33, 0.12, 10).rotateZ(Math.PI / 2), M4(-0.3, 0, -1.3), '#ffffff'); }),
       gagItem: mk(b => { b.addGeo(new THREE.IcosahedronGeometry(0.32, 0), null, '#bd63ff'); b.addGeo(new THREE.TorusGeometry(0.4, 0.04, 5, 14), M4(0, 0, 0, Math.PI / 2, 0, 0), '#ffcf3f'); }),
@@ -37,6 +39,7 @@ const Gags = {
   },
   mesh(kind) { const m = new THREE.Mesh(this.geo[kind], Models.mat); if (Look.toon && kind !== 'hole') Look.addOutline(m, 0.04); return m; },
   reset() {
+    for (const p of this.pies) this.scene.remove(p.m); this.pies = [];
     for (const a of [this.traps, this.drops, this.bubbles, this.smokes, this.ropes]) for (const o of a) { if (o.mesh) this.scene.remove(o.mesh); if (o.warn) this.scene.remove(o.warn); if (o.group) this.scene.remove(o.group); if (o.line) this.scene.remove(o.line); }
     this.traps = []; this.drops = []; this.bubbles = []; this.smokes = []; this.ropes = [];
   },
@@ -68,6 +71,19 @@ const Gags = {
         applyDamage(o, 30, f, false, 'mallet', o.pos.clone().setY(o.pos.y + 1.6)); o.flatT = 2.6; o.using = null;
         Effects.burst(_v1.set(o.pos.x, o.pos.y + 0.5, o.pos.z), '#ffcf3f', 10, 5, 0.5, 1);
       }
+    } else if (g === 'pie') {
+      // vise l'ennemi le plus proche du point visé, sinon le plus proche devant soi
+      let best = null, bd = Infinity;
+      for (const o of G.fighters) {
+        if (!o.alive || o === f || o.team === f.team || o.state === 'bus') continue;
+        const dx = o.pos.x - f.pos.x, dz = o.pos.z - f.pos.z, d = Math.hypot(dx, dz); if (d > 25) continue;
+        const sc = target ? dist2(o.pos.x, o.pos.z, target.x, target.z) : d * (1 + Math.max(0, -(dx * fx + dz * fz) / (d || 1)) * 4);
+        if (sc < bd && World.los(_v1.set(f.pos.x, f.pos.y + 1.4, f.pos.z), _v2.set(o.pos.x, o.pos.y + 1.4, o.pos.z))) { bd = sc; best = o; }
+      }
+      if (!best) { if (f.isPlayer) HUD.message('Aucune cible à moins de 25 m', 1.2); f.gagCD = 0.2; return false; }
+      const m = this.mesh('pie'); this.scene.add(m); const from = f.pos.clone().setY(f.pos.y + 1.5);
+      this.pies.push({ m, from, to: best, t: 0, owner: f });
+      Sfx.tone(500, 0.2, 0.15, 'sine', 1.6);
     } else if (g === 'balloon') { f.floatT = 7; f.onGround = false; Sfx.tone(300, 0.6, 0.2, 'sine', 3); }
     else if (g === 'box') { f.boxT = 30; f.boxGrace = 0.6; f.crouch = false; Sfx.noise(0.2, 800, 0.15); }
     if (f.isPlayer) { Haptic.play('gag'); HUD.lastInv = ''; Game.stat('gag', 1); }
@@ -128,10 +144,20 @@ const Gags = {
     for (const f of G.fighters) {
       if (!f.alive) continue;
       if (f.gagCD > 0) f.gagCD -= dt;
+      if (f.frozenT > 0) f.frozenT -= dt; if (f.pieT > 0) { f.pieT -= dt; if (f.ai && f.ai.target) f.ai.target = null; }
       if (f.slipT > 0) f.slipT -= dt; if (f.flatT > 0) f.flatT -= dt; if (f.stunT > 0) f.stunT -= dt; if (f.malletT > 0) f.malletT -= dt;
       if (f.floatT > 0) { f.floatT -= dt; if (f.knocked || f.state !== 'ground') f.floatT = 0; }
       if (f.boxT > 0) { f.boxT -= dt; f.boxGrace -= dt; if (f.boxGrace < 0 && (f.moveAmt > 0.75 || G.time - f.lastShotT < 0.2 || f.knocked)) f.boxT = 0; }
       if (f.mesh.visible) this.visuals(f, dt);
+    }
+    // tartes en vol
+    for (let i = this.pies.length - 1; i >= 0; i--) {
+      const p = this.pies[i]; p.t += dt * 2.2; const k = Math.min(1, p.t), tg = p.to;
+      p.m.position.set(lerp(p.from.x, tg.pos.x, k), lerp(p.from.y, tg.pos.y + 1.6, k) + Math.sin(k * Math.PI) * 2.5, lerp(p.from.z, tg.pos.z, k)); p.m.rotation.x += dt * 10;
+      if (k >= 1) {
+        this.scene.remove(p.m); this.pies.splice(i, 1);
+        if (tg.alive) { tg.pieT = 3; applyDamage(tg, 10, p.owner, false, 'pie', tg.pos.clone().setY(tg.pos.y + 2)); Effects.burst(_v1.set(tg.pos.x, tg.pos.y + 1.7, tg.pos.z), '#fff8ec', 12, 4, 0.6, 1); if (tg.isPlayer) HUD.pie(); if (dist2(tg.pos.x, tg.pos.z, G.camPos.x, G.camPos.z) < 50 * 50) Sfx.noise(0.25, 900, 0.3); }
+      }
     }
     // pièges
     for (let i = this.traps.length - 1; i >= 0; i--) {
@@ -189,6 +215,7 @@ const Gags = {
     const g = f.gag.g, low = f.hp + f.sh < 55;
     if ((g === 'piano' || g === 'anvil') && dist > 8 && dist < 55) this.use(f, T.pos.clone().add(_v3.set(T.vel.x * 0.8, 0, T.vel.z * 0.8)));
     else if (g === 'mallet' && dist < 3) this.use(f);
+    else if (g === 'pie' && dist < 20 && !(T.pieT > 0)) this.use(f, T.pos.clone());
     else if (g === 'banana' && dist < 10) this.use(f);
     else if ((g === 'balloon' || g === 'box' || g === 'hole') && low) this.use(f);
   },

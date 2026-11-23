@@ -87,7 +87,7 @@ const Net = {
       const fl = G.fighters.map(f => ({ nid: f.nid, name: f.name, team: f.team, skin: f.skin.id, glider: f.gliderDef.id, pack: f.pack, wrap: f.wrap, boss: !!f.isBoss, remote: !!f.remote }));
       const loot = G.loot.filter(i => !i.taken).map(i => this.lootMsg(i));
       const chests = G.chests.map(c => [Math.round(c.pos.x * 10) / 10, Math.round(c.pos.z * 10) / 10]);
-      const base = { t: 'start', mode: modeId, tod: Look.timeId, fighters: fl, loot, chests, bus: G.bus, storm: G.storm };
+      const base = { t: 'start', mode: modeId, tod: Look.timeId, fighters: fl, loot, chests, bus: G.bus, storm: G.storm, offers: Events.offers.map(o => ({ label: o.label, price: o.price, item: o.item })) };
       for (const m of others) this.send(Object.assign({ to: m.id, you: this.remote[m.id] ? this.remote[m.id].nid : -1 }, base));
       this.live = true; this.evq = []; this.pq = {};
       $('loading').hidden = true; $('hud').hidden = false;
@@ -119,7 +119,7 @@ const Net = {
       this.privT = 1 / 6;
       for (const id in this.remote) {
         const x = this.remote[id];
-        this.send({ t: 'p', to: +id, slots: x.slots, ammo: x.ammo, cur: x.cur, hp: x.hp, sh: x.sh, coins: x.coins || 0, gag: x.gag, key: !!x.hasKey, kills: x.kills, knocked: x.knocked, bleed: x.bleed, rev: x.reviveT, alive: x.alive, using: x.using, useT: x.useT, reloadT: x.reloadT, dmg: x.dmgDone, fx: [x.floatT || 0, x.boxT || 0, x.slipT || 0, x.flatT || 0, x.stunT || 0] });
+        this.send({ t: 'p', to: +id, slots: x.slots, ammo: x.ammo, cur: x.cur, hp: x.hp, sh: x.sh, coins: x.coins || 0, gag: x.gag, key: !!x.hasKey, kills: x.kills, knocked: x.knocked, bleed: x.bleed, rev: x.reviveT, alive: x.alive, using: x.using, useT: x.useT, reloadT: x.reloadT, dmg: x.dmgDone, fx: [x.floatT || 0, x.boxT || 0, x.slipT || 0, x.flatT || 0, x.stunT || 0, x.frozenT || 0, x.pieT || 0] });
       }
     }
   },
@@ -164,6 +164,7 @@ const Net = {
       case 'reload': startReload(f); break;
       case 'vault': Events.openVault(f); break;
       case 'jumpBus': if (f.state === 'bus') G.jumpFromBus(f); break;
+      case 'buy': if (Events.merchants.some(mm => dist2(f.pos.x, f.pos.z, mm.pos.x, mm.pos.z) < 6 * 6)) Events.buyFor(f, m.i); break;
       case 'grap': { const w = f.weapon; if (w && WEAPONS[w.w].grapple) { w.mag--; if (w.mag <= 0) f.slots[f.cur] = null; } break; }
     }
   },
@@ -187,7 +188,7 @@ const Net = {
       G.player = G.fighters[m.you]; G.playerTeam = G.player.team; Events.boss = null; if (World.vault) { World.vault.open = false; World.vault.wall.dead = false; }
       for (const l of m.loot) { const it = this.origMakeLoot.call(G, l[1], l[2], l[4], l[3]); it.nid = l[0]; }
       for (const c of m.chests) G.spawnChest(c[0], c[1]);
-      Object.assign(G.storm, m.storm); G.stormMesh.visible = true;
+      Object.assign(G.storm, m.storm); G.stormMesh.visible = true; if (m.offers) Events.offers = m.offers;
       if (!G.busMesh) { G.busMesh = Models.bus(); G.scene.add(G.busMesh); }
       G.bus = m.bus; G.busPos = new THREE.Vector3(m.bus.sx, m.bus.y, m.bus.sz); G.busMesh.visible = true; G.busMesh.rotation.y = Math.atan2(-(m.bus.ex - m.bus.sx), -(m.bus.ez - m.bus.sz));
       G.camYaw = G.busMesh.rotation.y; G.camPitch = -0.25; G.shotSeq = 0; this.pickSent = {};
@@ -219,7 +220,7 @@ const Net = {
     p.slots = m.slots; p.ammo = m.ammo; if (m.cur !== p.cur && !(p.switchT > 0)) p.cur = m.cur;
     p.hp = m.hp; p.sh = m.sh; p.coins = m.coins; p.gag = m.gag; p.hasKey = m.key; p.kills = m.kills; p.knocked = m.knocked; p.bleed = m.bleed; p.reviveT = m.rev;
     p.using = m.using; p.useT = m.useT; p.reloadT = m.reloadT; Game.matchStats.damage = m.dmg || 0;
-    if (m.fx) { p.floatT = m.fx[0]; p.boxT = m.fx[1]; p.slipT = Math.max(p.slipT || 0, m.fx[2]); p.flatT = m.fx[3]; p.stunT = m.fx[4]; }
+    if (m.fx) { p.floatT = m.fx[0]; p.boxT = m.fx[1]; p.slipT = Math.max(p.slipT || 0, m.fx[2]); p.flatT = m.fx[3]; p.stunT = m.fx[4]; p.frozenT = m.fx[5] || 0; if ((m.fx[6] || 0) > 2.5 && !(p.pieT > 0)) HUD.pie(); p.pieT = m.fx[6] || 0; }
     if (!m.alive && p.alive) { p.alive = false; p.mesh.visible = false; Effects.poof(p.pos); }
   },
   applyEvent(e) {
@@ -336,7 +337,6 @@ const Net = {
     wrapAct(Gags, 'use', (f, tgt) => ({ a: 'gag', tgt: tgt ? [tgt.x, tgt.y, tgt.z] : null }));
     wrapAct(Events, 'openVault', () => ({ a: 'vault' }));
     wrapAct(G, 'enterKart', () => { HUD.message('Véhicules indisponibles en multijoueur (client)', 1.5); return null; });
-    wrapAct(Events, 'openShop', () => { HUD.message('Boutique réservée à l\'hôte en multijoueur', 1.5); return null; });
     wrapAct(G, 'jumpFromBus', f => (f.isPlayer ? { a: 'jumpBus', local: true } : { local: true }));
     const sel0 = G.selectSlot; G.selectSlot = function (i) { sel0.call(this, i); if (self.isClient && self.live) self.send({ t: 'act', a: 'slot', i: G.player.cur }); };
     const rl0 = startReload; startReload = function (f) { if (self.isClient && self.live && f.isPlayer) { self.send({ t: 'act', a: 'reload' }); return; } return rl0(f); };

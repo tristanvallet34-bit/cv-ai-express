@@ -12,6 +12,14 @@ cd battle-royale && python3 -m http.server 8000
 Sur téléphone : menu du navigateur → « Ajouter à l'écran d'accueil » pour l'avoir comme une appli plein écran.
 Fonctionne aussi tel quel sur GitHub Pages.
 
+## Nouveautés v5 — d'après le document de conception
+- **Code de sauvegarde** (Réglages › Sauvegarde) : copie ta progression et restaure-la sur un autre appareil.
+- **Marchands ouverts aux invités** en multijoueur ; chaque joueur peut acheter chaque article une fois.
+- **Qualité Économie** : le changement propose un bouton « Recharger maintenant ».
+- **Fusil Givrant** : ralentit la cible de 45 % pendant 1,6 s (teinte bleue).
+- **Gag Tarte à la crème** : aveugle l'adversaire 3 s (écran couvert de crème pour un joueur, les bots perdent leur cible).
+- **Nouveau lieu : Fête Foraine** — grande roue, carrousel et stands.
+
 ## Nouveautés v4 — vue arcade et paysage intégral
 - **Vue arcade** (par défaut) : caméra de dessus qui suit le joueur, **double joystick** — gauche pour bouger, droit pour viser et tirer en continu (une touche brève = tir rapide sur l'ennemi le plus proche). Visée automatique dans le cône du joystick, ligne de visée au sol, recul de caméra au sniper.
 - **Découpe des bâtiments** : toits, étages et feuillages s'effacent autour du joueur pour voir à l'intérieur ; silhouette du joueur et des coéquipiers visible à travers les murs.

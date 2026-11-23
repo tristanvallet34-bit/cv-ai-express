@@ -16,6 +16,7 @@ const World = {
     { n: 'Plage Coco', x: 60, z: 330, r: 36, type: 'town', count: 4 },
     { n: 'Dunes Sucrées', x: 100, z: 160, r: 40, type: 'town', count: 5, candy: true },
     { n: 'Marais Grenouille', x: -185, z: -165, r: 34, type: 'cabin', count: 4, swamp: true },
+    { n: 'Fête Foraine', x: -40, z: -118, r: 40, type: 'fair', count: 3 },
   ],
   river: [[205, -175], [250, -110], [300, -70], [360, -55], [460, -40]],
   CANDY: { x: 190, z: 150, r: 150 }, SWAMP: { x: -185, z: -165, r: 95 },
@@ -362,6 +363,8 @@ const World = {
       const s = tryPlace(5, 5); if (s) { const h = this.h(s.x, s.z); this.gb.addGeo(new THREE.CylinderGeometry(2.4, 2.4, 14, 12), M4(s.x, h + 7, s.z), '#d9e2ea'); this.gb.addGeo(new THREE.SphereGeometry(2.4, 12, 6, 0, TAU, 0, Math.PI / 2), M4(s.x, h + 14, s.z), '#e8344d'); this.addCircle(s.x, s.z, 2.5, h + 16); }
     } else if (p.type === 'castle') {
       this.addCastle(p, R);
+    } else if (p.type === 'fair') {
+      this.addFair(p, R, tryPlace, faceCenter);
     }
     // caisses de couverture
     for (let i = 0; i < Math.round(p.r / 9); i++) { const q = tryPlace(3, 3); if (q) this.addCoverCluster(q.x, q.z, R, true); }
@@ -493,6 +496,32 @@ const World = {
       this.crates.push({ x: px, y: h, z: pz, s, rot: R() * 0.4, wall: w1 });
       if (i === 0 && R() < 0.35) { const w2 = this.addWall(px - s * 0.4, px + s * 0.4, pz - s * 0.4, pz + s * 0.4, h + s, h + s * 1.9, { cover: true }); this.crates.push({ x: px, y: h + s, z: pz, s: s * 0.8, rot: R(), wall: w2 }); }
     }
+  },
+  // Fête Foraine : grande roue, carrousel, stands
+  addFair(p, R, tryPlace, faceCenter) {
+    const gb = this.gb, h = p.h + 0.05;
+    // grande roue (dans le plan X-Y, face au sud)
+    const wx = p.x - 8, wz = p.z - 6, wy = h + 12, rad = 9.5;
+    gb.addGeo(new THREE.TorusGeometry(rad, 0.28, 6, 40), M4(wx, wy, wz), '#ff4f8b');
+    gb.addGeo(new THREE.TorusGeometry(rad * 0.55, 0.18, 6, 32), M4(wx, wy, wz), '#ffcf3f');
+    for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; gb.addGeo(new THREE.BoxGeometry(0.14, rad * 2, 0.14), M4(wx, wy, wz, 0, 0, a), '#f2f2f2'); }
+    gb.addGeo(new THREE.CylinderGeometry(0.7, 0.7, 1.2, 12).rotateX(Math.PI / 2), M4(wx, wy, wz), '#3a3645');
+    const cabC = ['#3ea8ff', '#2ee6c8', '#ffcf3f', '#bd63ff', '#ff8a3d', '#8ee04a', '#ff4f8b', '#ffffff'];
+    for (let i = 0; i < 8; i++) { const a = i / 8 * TAU + 0.2, cx = wx + Math.cos(a) * rad, cy = wy + Math.sin(a) * rad; gb.box(cx, cy - 1.1, wz, 1.6, 1.4, 1.6, cabC[i]); gb.box(cx, cy - 0.3, wz, 1.8, 0.15, 1.8, '#3a3645'); }
+    for (const s of [-1, 1]) { gb.addGeo(new THREE.BoxGeometry(0.4, wy - h + 1, 0.4), M4(wx + s * 3.2, h + (wy - h) / 2, wz - 1.2, 0, 0, s * 0.26), '#c9d2dc'); gb.addGeo(new THREE.BoxGeometry(0.4, wy - h + 1, 0.4), M4(wx + s * 3.2, h + (wy - h) / 2, wz + 1.2, 0, 0, s * 0.26), '#c9d2dc'); }
+    this.addWall(wx - 1.2, wx + 1.2, wz - 1.6, wz + 1.6, h - 1, h + 3); this.addWall(wx - 6.5, wx - 4.5, wz - 1.6, wz + 1.6, h - 1, h + 1.5); this.addWall(wx + 4.5, wx + 6.5, wz - 1.6, wz + 1.6, h - 1, h + 1.5);
+    // carrousel
+    const cx = p.x + 12, cz = p.z + 6;
+    gb.addGeo(new THREE.CylinderGeometry(4.6, 4.8, 0.5, 20), M4(cx, h + 0.25, cz), '#ffe8b0');
+    gb.addGeo(new THREE.CylinderGeometry(0.35, 0.35, 5, 10), M4(cx, h + 2.5, cz), '#ffcf3f');
+    gb.addGeo(new THREE.ConeGeometry(5.2, 2.4, 20), M4(cx, h + 6.2, cz), '#e8344d');
+    gb.addGeo(new THREE.CylinderGeometry(5.2, 5.2, 0.4, 20), M4(cx, h + 4.9, cz), '#ffffff');
+    for (let i = 0; i < 8; i++) { const a = i / 8 * TAU, x = cx + Math.cos(a) * 3.4, z = cz + Math.sin(a) * 3.4; gb.addGeo(new THREE.CylinderGeometry(0.06, 0.06, 4.4, 5), M4(x, h + 2.7, z), '#f2f2f2'); gb.box(x, h + 1.6, z, 0.4, 0.7, 1.1, cabC[i], -a); gb.box(x, h + 2.1, z - 0.0, 0.3, 0.4, 0.3, cabC[(i + 3) % 8], -a); }
+    this.addCircle(cx, cz, 0.6, h + 5); this.addWall(cx - 4.4, cx + 4.4, cz - 4.4, cz + 4.4, h - 1, h + 0.5, { cover: true });
+    this.chestSpots.push({ x: cx + 2, z: cz + 2 }, { x: wx, z: wz + 4 });
+    for (let i = 0; i < 6; i++) this.lootSpots.push({ x: p.x + (R() - 0.5) * p.r * 1.2, z: p.z + (R() - 0.5) * p.r * 1.2, out: true });
+    // stands
+    for (let i = 0; i < p.count; i++) { const q = tryPlace(8, 7); if (q) this.addHouse(q.x, q.z, 8, 7, 4, faceCenter(q.x, q.z), R, { small: true, candy: true }); }
   },
   addCastle(p, R) {
     const H = 7, T = 1.4, S = 30, base = p.h + 0.1; const gb = this.gb;
