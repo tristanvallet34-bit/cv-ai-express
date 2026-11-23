@@ -12,6 +12,15 @@ cd battle-royale && python3 -m http.server 8000
 Sur téléphone : menu du navigateur → « Ajouter à l'écran d'accueil » pour l'avoir comme une appli plein écran.
 Fonctionne aussi tel quel sur GitHub Pages.
 
+## Nouveautés v3 — les 7 sprints
+1. **Sensations** : musique dynamique qui monte avec l'action, annonceur (Doublé, Triplé, Top 10…) avec voix, pings (ennemi, objet, « on va là ») suivis par les coéquipiers IA, vibrations par événement, micro-pause à l'élimination, recul et rechargement visibles.
+2. **Gags** : piano tombant, peau de banane, maillet géant, enclume, trou portable, ballon, boîte en carton. Nouvelles armes : arbalète, fusil rafale, grappin. Bombe rebondissante, fumigène, bulle bouclier. Caisses destructibles.
+3. **Île vivante** : désert de bonbons, marais, rivière avec ponts et aéroglisseurs, coffre-fort à clé, marchands et pièces, pluie de météores, tempête dorée, boss Roi Pingouin (butin mythique).
+4. **Modes** : Escouade (4), Mêlée générale 20 contre 20 avec réapparition, Entraînement, Mode du jour.
+5. **Progression** : saisons de 30 jours, quêtes hebdo, étoiles et boutique (sans argent réel), emotes, sacs, motifs d'armes, traînées, 20 succès, mode classé Bronze → Légende.
+6. **Technique** : détection du GPU, niveaux de détail, jeu hors ligne (service worker), projet Capacitor Android/iOS (`app/`, voir `app/STORES.md`).
+7. **Multijoueur entre amis** : salons privés jusqu'à 10 joueurs + bots (`server/`, voir `server/README.md`).
+
 ## Nouveautés v2 — rendu « dessin animé » et gameplay
 - **Cel-shading** (ombrage en aplats), **contours noirs** sur personnages, bâtiments, arbres et rochers
 - **Post-traitement** (qualité Beau/Ultra) : bloom, étalonnage des couleurs, vignette, anti-crénelage FXAA
@@ -78,4 +87,12 @@ js/input.js    joystick dynamique, boutons, clavier/souris
 js/hud.js      interface en jeu
 js/game.js     boucle, bus, tempête, loot, karts, caméra, rendu
 js/ui.js       lobby, casier, passe, défis, carrière, réglages, écran de fin
+js/feel.js     musique dynamique, annonceur, pings, vibrations
+js/gags.js     Gags, pièges, bulles, fumigènes, grappin
+js/events.js   pièces, marchands, coffre-fort, météores, tempête dorée, boss
+js/modes.js    Escouade, Mêlée générale, Entraînement, Mode du jour
+js/meta.js     saison, quêtes, étoiles, cosmétiques, succès, classé
+js/net.js      multijoueur (hôte / invités)
+server/        serveur relais WebSocket + hébergement du jeu
+app/           emballage Capacitor pour le Play Store et l'App Store
 ```

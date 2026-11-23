@@ -417,7 +417,7 @@ function applyDamage(t, dmg, att, head, wtype, at) {
     att.dmgDone += dmg; Game.stat('damage', dmg); if (head) { att.headshots++; Game.stat('head', 1); }
     if (Settings.dmgNumbers && at) HUD.dmgNumber(at, dmg, head, t.sh > 0 || broke);
     HUD.hitmarker(head, t.hp <= 0); Sfx.hit(head); if (broke) { Sfx.shieldBreak(); Haptic.play('shield'); } else Haptic.play(head ? 'head' : 'hit'); Game.lastCombat = Game.time;
-  } else if (att && att.ai) att.dmgDone += dmg;
+  } else if (att && att !== t) att.dmgDone += dmg;
   if (t.isPlayer) {
     if (att && att !== t) HUD.damageFrom(att.pos); Sfx.hurt(); Haptic.play('hurt'); Game.lastCombat = Game.time;
     if (Settings.camShake) Game.shake = Math.max(Game.shake, 0.15);

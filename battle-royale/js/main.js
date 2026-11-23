@@ -3,6 +3,7 @@
 window.addEventListener('load', () => {
   if (!window.THREE) { document.getElementById('splashTxt').textContent = 'Impossible de charger le moteur 3D. Vérifie ta connexion puis recharge la page.'; return; }
   Sfx.setVol(Settings.vol); Meta.init();
+  Net.install();
   Input.init();
   HUD.init(); Pings.init();
   setTimeout(() => {

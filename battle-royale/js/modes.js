@@ -82,7 +82,7 @@ const Modes = {
     return false;
   },
   update(G, dt) {
-    const M = G.mode;
+    const M = G.mode; this.respawns = this.respawns || [];
     for (let i = this.respawns.length - 1; i >= 0; i--) {
       const r = this.respawns[i]; if (G.time < r.at || G.ended || G.rumbleDone) continue; this.respawns.splice(i, 1);
       if (M.training) {

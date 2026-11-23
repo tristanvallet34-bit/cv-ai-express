@@ -1,0 +1,10 @@
+{
+  "name": "toon-royale-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Serveur relais multijoueur de Toon Royale (salons privés) + hébergement du jeu",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": { "ws": "^8.18.0" }
+}

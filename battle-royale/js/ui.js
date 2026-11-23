@@ -157,6 +157,7 @@ const UI = {
     if (tab === 'stats') { title.textContent = 'Carrière'; this.renderStats(body); }
     if (tab === 'settings') { title.textContent = 'Paramètres'; this.renderSettings(body); }
     if (tab === 'help') { title.textContent = 'Comment jouer'; this.renderHelp(body); }
+    if (tab === 'friends') { title.textContent = 'Jouer entre amis'; body.innerHTML = '<div id="netBody"></div>'; Net.renderPanel(); }
     if (tab === 'shop') { title.textContent = 'Boutique d\'étoiles'; this.renderShop(body); }
     if (tab === 'awards') { title.textContent = 'Succès & classé'; this.renderAwards(body); }
     this.setLobbyChar();
