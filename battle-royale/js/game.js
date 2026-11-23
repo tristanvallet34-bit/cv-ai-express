@@ -53,10 +53,22 @@ const Game = {
     this.last = performance.now(); this.fpsAcc = 0; this.fpsN = 0; this.lowFpsT = 0;
     requestAnimationFrame(t => this.loop(t));
   },
+  // détection de la puissance du GPU pour le mode « Auto »
+  gpuTier() {
+    if (this._tier) return this._tier;
+    let name = '';
+    try { const gl = this.renderer.getContext(); const ext = gl.getExtension('WEBGL_debug_renderer_info'); name = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); } catch (e) { }
+    this.gpuName = name || '?';
+    const mobile = matchMedia('(pointer: coarse)').matches, mem = navigator.deviceMemory || 4, cores = navigator.hardwareConcurrency || 4;
+    let tier = mobile ? 'medium' : 'high';
+    if (/Mali-[234T]|Mali-G(31|51|52|57)|Adreno \(TM\) [345]\d\d|PowerVR|SGX|Intel\(R\) HD Graphics [2-5]|SwiftShader|llvmpipe/i.test(name) || mem <= 2 || cores <= 2) tier = 'low';
+    else if (mobile && (/Apple GPU|Adreno \(TM\) (7[3-9]\d|8\d\d)|Mali-G7[1-9]|Immortalis|Xclipse/i.test(name)) && mem >= 6) tier = 'high';
+    else if (!mobile && /RTX|Radeon RX|Apple M[1-9]|GTX 1[06-9]|GTX [2-9]/i.test(name)) tier = 'ultra';
+    this._tier = tier; return tier;
+  },
   resolveQuality() {
     if (Settings.quality !== 'auto') return Settings.quality;
-    const mobile = matchMedia('(pointer: coarse)').matches;
-    return mobile ? 'medium' : 'high';
+    return this.renderer ? this.gpuTier() : (matchMedia('(pointer: coarse)').matches ? 'medium' : 'high');
   },
   applyQuality() {
     this.quality = this.resolveQuality(); const Q = QUALITY[this.quality];
@@ -899,6 +911,10 @@ const Game = {
     m.visible = f.alive && f.state !== 'bus' && d2 < far * far && !scoped;
     if (!m.visible) return;
     m.position.copy(f.pos); m.rotation.y = f.yaw;
+    // niveau de détail : au loin, on n'anime plus et on simplifie la silhouette
+    const lod = d2 > 85 * 85 && !f.isPlayer;
+    if (lod !== f._lod) { f._lod = lod; P.legL.visible = P.legR.visible = P.arms.visible = !lod; if (f.outl.length) for (const o of f.outl) o.visible = false; }
+    if (lod) { if (f.state === 'glide' || f.state === 'fall') P.glider.visible = f.state === 'glide'; return; }
     const near = d2 < 55 * 55;
     if (f.outl.length && f.outl[0].visible !== near) for (const o of f.outl) o.visible = near;
     if (f.flashT > 0) { f.flashT -= dt; const k = Math.max(0, f.flashT / 0.12); f.mat.emissive.setRGB(k, k * 0.9, k * 0.9); } else if (f.mat.emissive.r) f.mat.emissive.setRGB(0, 0, 0);

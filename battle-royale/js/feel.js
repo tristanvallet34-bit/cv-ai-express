@@ -84,7 +84,14 @@ const Announcer = {
 // ---------- Vibrations ----------
 const Haptic = {
   P: { hit: [12], head: [10, 30, 18], kill: [30, 40, 70], shield: [40, 25, 40], hurt: [45], knock: [200, 80, 200], land: [25], streak: [20, 30, 20, 30, 60], ping: [10], gag: [35, 20, 35] },
-  play(k) { try { if (Settings.vibration && navigator.vibrate) navigator.vibrate(this.P[k] || 20); } catch (e) { } },
+  play(k) {
+    if (!Settings.vibration) return;
+    try {
+      const H = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Haptics;
+      if (H) { const heavy = ['kill', 'knock', 'shield', 'streak', 'gag'].includes(k); H.impact({ style: heavy ? 'HEAVY' : k === 'hit' || k === 'ping' ? 'LIGHT' : 'MEDIUM' }); return; }
+      if (navigator.vibrate) navigator.vibrate(this.P[k] || 20);
+    } catch (e) { }
+  },
 };
 
 // ---------- Pings ----------

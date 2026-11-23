@@ -6,5 +6,27 @@
   "orientation": "landscape",
   "background_color": "#2b1e5c",
   "theme_color": "#1d1440",
-  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "description": "Battle royale cartoon sans construction, pensé pour le téléphone.",
+  "lang": "fr",
+  "categories": [
+    "games"
+  ]
 }

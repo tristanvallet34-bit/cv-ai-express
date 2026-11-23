@@ -82,7 +82,7 @@ const Gags = {
     if (floating || P.balloon) need('balloon').visible = floating;
     const boxed = f.boxT > 0;
     if (boxed || P.box) need('box').visible = boxed;
-    P.body.visible = P.legL.visible = P.legR.visible = P.arms.visible = !boxed;
+    if (f._boxVis !== boxed) { f._boxVis = boxed; P.body.visible = P.legL.visible = P.legR.visible = P.arms.visible = !boxed; f._lod = undefined; }
     if (f.malletT > 0 || P.mallet) { const m = need('mallet', P.arms, new THREE.Vector3(0.2, 0, 0)); m.visible = f.malletT > 0; if (m.visible) m.rotation.x = 1.6 - (1 - f.malletT / 0.45) * 2.4; }
     const flat = f.flatT > 0, S = f.scale || 1; f.mesh.scale.set((flat ? 1.25 : 1) * S, (flat ? 0.35 : 1) * S, (flat ? 1.25 : 1) * S);
   },

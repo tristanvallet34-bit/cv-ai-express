@@ -1,0 +1,8 @@
+{
+  "appId": "com.toonroyale.game",
+  "appName": "Toon Royale",
+  "webDir": "www",
+  "backgroundColor": "#1d1440",
+  "android": { "allowMixedContent": false, "captureInput": true },
+  "ios": { "contentInset": "never", "backgroundColor": "#1d1440" }
+}

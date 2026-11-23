@@ -18,7 +18,7 @@ const TIMES = {
 const Look = {
   toon: true, grad: null, uniforms: { time: { value: 0 } }, outlines: {}, swayShaders: [],
   init() {
-    const q = Settings.quality === 'auto' ? (matchMedia('(pointer: coarse)').matches ? 'medium' : 'high') : Settings.quality;
+    const q = Game.resolveQuality();
     this.toon = q !== 'low';
     const d = new Uint8Array([95, 95, 95, 255, 170, 170, 170, 255, 235, 235, 235, 255, 255, 255, 255, 255]);
     this.grad = new THREE.DataTexture(d, 4, 1, THREE.RGBAFormat);
