@@ -32,7 +32,7 @@ class BotAI {
     const f = this.f; let best = -1, bs = -1;
     f.slots.forEach((s, i) => {
       if (!s || s.kind !== 'weapon') return; const W = WEAPONS[s.w];
-      if (s.mag <= 0 && f.ammo[W.ammo] <= 0) return;
+      if (W.grapple || (s.mag <= 0 && f.ammo[W.ammo] <= 0)) return;
       let sc = f.weaponScore(s) * 0.01 + 1;
       if (dist <= W.botRange * 1.4 && dist >= (s.w === 'sniper' ? 40 : 0)) sc += 10 - Math.abs(dist - W.botRange * 0.7) * 0.05;
       if (s.w === 'shotgun' && dist < 14) sc += 6;
@@ -54,7 +54,8 @@ class BotAI {
       if (it.taken || (it.claim && it.claim !== f && it.claim.alive)) continue;
       const d = dist2(f.pos.x, f.pos.z, it.pos.x, it.pos.z);
       let dd = d;
-      if (it.kind === 'weapon') { if (!noWeapon && !this.wantsWeapon(it)) continue; dd *= noWeapon ? 0.3 : 0.7; }
+      if (it.kind === 'gag') { if (f.gag) continue; dd *= 0.8; }
+      else if (it.kind === 'weapon') { if (WEAPONS[it.w].grapple || (!noWeapon && !this.wantsWeapon(it))) continue; dd *= noWeapon ? 0.3 : 0.7; }
       else if (it.kind === 'ammo') { if (!f.slots.some(s => s && s.kind === 'weapon' && WEAPONS[s.w].ammo === it.a) || f.ammo[it.a] > 90) continue; }
       else if (it.kind === 'cons') { if (f.freeSlot() < 0 && !f.slots.some(s => s && s.kind === 'cons' && s.c === it.c && s.n < CONS[it.c].stack)) continue; }
       if (dd < bd) { bd = dd; best = it; }
@@ -86,6 +87,7 @@ class BotAI {
         if (d > 18 * 18 && Math.abs(angDiff(f.yaw, a)) > 1.25) continue;
         // buissons : cachés si accroupis dedans et loin
         if (o.crouch && d > 12 * 12 && G.inBush(o)) continue;
+        if (o.boxT > 0 && o.moveAmt < 0.2 && d > 10 * 10) continue;
         if (!World.los(eye, _v2.set(o.pos.x, o.eyeY, o.pos.z))) continue;
         bd = d; best = o;
       }
@@ -248,6 +250,8 @@ class BotAI {
       return;
     }
     if (!f.weapon) return;
+    Gags.botUse(f, T, dist);
+    if (f.boxT > 0 && f.hp + f.sh < 55) { inp.dx = inp.dz = 0; return; }
     // viser
     const want = Math.atan2(-dx, -dz);
     const dy = (T.pos.y + 1.2) - (f.pos.y + 1.4);

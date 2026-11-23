@@ -30,7 +30,7 @@ const Game = {
     this.sun = new THREE.DirectionalLight(0xfff2d6, 0.85); this.sun.position.set(80, 140, -60); this.scene.add(this.sun); this.scene.add(this.sun.target);
     this.amb = new THREE.AmbientLight(0xffffff, 0.18); this.scene.add(this.amb);
     this.scene.fog = new THREE.Fog(0xbfe6ff, 60, Q.fog);
-    Models.init(); Effects.init(this.scene);
+    Models.init(); Effects.init(this.scene); Gags.init(this.scene);
     // tempête (mur animé)
     this.stormMesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 300, 96, 1, true), Look.stormMat());
     this.stormMesh.position.y = 120; this.stormMesh.visible = false; this.scene.add(this.stormMesh);
@@ -41,6 +41,7 @@ const Game = {
     this.beamMats = RARITY.map(r => new THREE.MeshBasicMaterial({ color: r.c, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide }));
     this.chestMat = Look.mat({ vertexColors: true, emissive: 0x553300 });
     this.rocketGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.7, 8).rotateX(Math.PI / 2);
+    this.boltGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.8, 5).rotateX(Math.PI / 2);
     this.lootGroup = new THREE.Group(); this.scene.add(this.lootGroup);
     this.dynGroup = new THREE.Group(); this.scene.add(this.dynGroup);
     Post.init(this.renderer);
@@ -89,6 +90,7 @@ const Game = {
     this.cleanup();
     let tod = Settings.timeOfDay;
     if (tod === 'random') { const r = Math.random(); tod = r < 0.3 ? 'day' : r < 0.55 ? 'morning' : r < 0.85 ? 'sunset' : 'night'; }
+    Gags.reset(); World.resetCrates();
     Look.applyTime(tod); this.applyQuality(); this.stormMix = 0; this._stormFog = true; this.timeScale = 1; this.slowT = 0; this.victoryT = 0; this.reviveHold = 0;
     this.phase = 'bus'; this.time = 0; this.matchStart = 0; this.paused = false; this.spectating = null; this.ended = false;
     this.matchStats = { kills: 0, chests: 0, damage: 0, heal: 0, head: 0, sniperk: 0, shotgunk: 0, drive: 0 };
@@ -160,6 +162,7 @@ const Game = {
     const g = new THREE.Group();
     let geo; let rar = 0;
     if (it.kind === 'weapon') { geo = Models.weapon(it.w, it.rar); rar = it.rar; }
+    else if (it.kind === 'gag') { geo = Gags.geo.gagItem; rar = GAGS[it.g].rar; }
     else if (it.kind === 'cons') geo = Models.consumable(it.c);
     else geo = Models.ammo(it.a);
     const m = new THREE.Mesh(geo, Models.mat); m.position.y = 0.55; if (it.kind === 'weapon') m.scale.setScalar(1.5); g.add(m);
@@ -175,7 +178,8 @@ const Game = {
   },
   spawnFloorLoot(x, z) {
     const r = Math.random();
-    if (r < 0.45) { const wd = this.rollWeapon(0); this.makeLoot(wd, x, z); const a = WEAPONS[wd.w].ammo; this.makeLoot({ kind: 'ammo', a, n: AMMO[a].pick * 2 }, x + 0.9, z + 0.4); }
+    if (r < 0.07) { this.makeLoot({ kind: 'gag', g: pick(GAG_LIST) }, x, z); return; }
+    if (r < 0.45) { const wd = this.rollWeapon(0); this.makeLoot(wd, x, z); const a = WEAPONS[wd.w].ammo; if (a) this.makeLoot({ kind: 'ammo', a, n: AMMO[a].pick * 2 }, x + 0.9, z + 0.4); }
     else if (r < 0.75) { const c = pick(FLOOR_CONS); this.makeLoot({ kind: 'cons', c, n: CONS[c].pick }, x, z); }
     else { const a = pick(Object.keys(AMMO)); this.makeLoot({ kind: 'ammo', a, n: AMMO[a].pick }, x, z); }
   },
@@ -193,8 +197,9 @@ const Game = {
     if (c.isSupply && Math.random() < 0.5) Object.assign(wd, { w: 'minigun', rar: 4, mag: WEAPONS.minigun.mag });
     if (c.isSupply && Math.random() < 0.3) Object.assign(wd, { w: 'sniper', rar: 4, mag: WEAPONS.sniper.mag });
     const a = WEAPONS[wd.w].ammo;
-    const items = [wd, { kind: 'ammo', a, n: AMMO[a].pick * 2 }, (() => { const cc = c.isSupply ? 'shieldB' : pick(FLOOR_CONS); return { kind: 'cons', c: cc, n: CONS[cc].pick * (c.isSupply ? 2 : 1) }; })()];
+    const items = [wd, a ? { kind: 'ammo', a, n: AMMO[a].pick * 2 } : { kind: 'ammo', a: 'medium', n: 30 }, (() => { const cc = c.isSupply ? 'shieldB' : pick(FLOOR_CONS); return { kind: 'cons', c: cc, n: CONS[cc].pick * (c.isSupply ? 2 : 1) }; })()];
     if (c.isSupply) items.push({ kind: 'cons', c: 'medkit', n: 2 });
+    if (c.isSupply || Math.random() < 0.5) items.push({ kind: 'gag', g: pick(GAG_LIST) });
     items.forEach((d, i) => { const ang = i / items.length * TAU + 0.5; this.makeLoot(d, x + Math.cos(ang) * 1.5, z + Math.sin(ang) * 1.5); });
     if (f.isPlayer) { Sfx.chest(); this.stat('chests', 1); }
     else if (dist2(f.pos.x, f.pos.z, this.player.pos.x, this.player.pos.z) < 40 * 40) Sfx.chest();
@@ -202,6 +207,7 @@ const Game = {
   dropLoot(t) {
     let i = 0; const drop = d => { const a = i++ * 1.3; this.makeLoot(d, t.pos.x + Math.cos(a) * (1 + i * 0.25), t.pos.z + Math.sin(a) * (1 + i * 0.25)); };
     for (const s of t.slots) if (s) drop(Object.assign({}, s, { kind: s.kind }));
+    if (t.gag) { drop({ kind: 'gag', g: t.gag.g }); t.gag = null; }
     for (const a in t.ammo) if (t.ammo[a] > 0) drop({ kind: 'ammo', a, n: t.ammo[a] });
     t.slots = [null, null, null, null, null];
   },
@@ -216,6 +222,10 @@ const Game = {
         const old = f.slots[f.cur]; if (old) this.makeLoot(Object.assign({}, old, { dropped: true }), f.pos.x, f.pos.z);
         f.slots[f.cur] = { kind: 'cons', c: it.c, n: it.n }; f.using = null;
       } else if (left > 0) { it.n = left; if (f.isPlayer) Sfx.pickup(); return true; }
+    } else if (it.kind === 'gag') {
+      if (f.gag && auto) return false;
+      if (f.gag && f.gag.g !== it.g) this.makeLoot({ kind: 'gag', g: f.gag.g, dropped: true }, f.pos.x + 0.5, f.pos.z + 0.5);
+      Gags.give(f, it.g);
     } else if (it.kind === 'weapon') {
       let idx = f.freeSlot();
       if (idx < 0 || (f.isBot && f.slots.filter(s => s && s.kind === 'weapon').length >= 3)) {
@@ -258,22 +268,35 @@ const Game = {
     HUD.message('📦 Un <b>ravitaillement</b> tombe dans la zone !', 3.5);
   },
   throwGrenade(f) {
-    const it = f.item; if (!it || it.c !== 'grenade') return;
+    const it = f.item; if (!it || !CONS[it.c] || !CONS[it.c].throw) return;
     const dir = f.isPlayer ? this.camDir.clone() : new THREE.Vector3(-Math.sin(f.yaw), 0.35, -Math.cos(f.yaw));
     dir.y += 0.25; dir.normalize();
     const p = new THREE.Vector3(f.pos.x, f.eyeY, f.pos.z).addScaledVector(dir, 0.8);
-    const m = new THREE.Mesh(Models.consumable('grenade'), Models.mat); m.position.copy(p); this.dynGroup.add(m);
-    this.grenades.push({ pos: p, vel: dir.multiplyScalar(24), t: 2.3, owner: f, mesh: m });
+    const m = new THREE.Mesh(Models.consumable(it.c), Models.mat); m.position.copy(p); this.dynGroup.add(m);
+    this.grenades.push({ pos: p, vel: dir.multiplyScalar(it.c === 'bubble' ? 16 : 24), t: it.c === 'bouncy' ? 3.2 : it.c === 'bubble' ? 1.1 : it.c === 'smoke' ? 1.6 : 2.3, owner: f, mesh: m, kind: it.c });
     it.n--; if (it.n <= 0) f.slots[f.cur] = null;
     f.fireT = 0.6;
   },
-  fireRocket(f, from, dir, rar) {
-    const m = new THREE.Mesh(this.rocketGeo, Models.mat); m.position.copy(from); this.dynGroup.add(m);
-    this.rockets.push({ pos: from.clone(), vel: dir.clone().multiplyScalar(62), owner: f, mesh: m, life: 5, rar });
+  fireRocket(f, from, dir, rar, kind) {
+    kind = kind || 'rocket';
+    const m = new THREE.Mesh(kind === 'bolt' ? this.boltGeo : this.rocketGeo, Models.mat); m.position.copy(from); this.dynGroup.add(m);
+    this.rockets.push({ pos: from.clone(), vel: dir.clone().multiplyScalar(kind === 'bolt' ? 95 : 62), owner: f, mesh: m, life: 5, rar, kind });
   },
+  damageCrate(c, dmg, at) {
+    if (!c || c.wall.dead) return; c.hp -= dmg;
+    Effects.burst(at || _v1.set(c.x, c.y + c.s / 2, c.z), '#c58a4f', 3, 4, 0.4, 0.8);
+    if (c.hp <= 0) {
+      World.breakCrate(c); const p = _v1.set(c.x, c.y + c.s / 2, c.z);
+      Effects.burst(p, '#c58a4f', 14, 7, 0.8, 1.2); Effects.burst(p, '#8a5a30', 8, 6, 0.8, 1.2);
+      if (p.distanceTo(this.camPos) < 80) { Sfx.noise(0.35, 700, 0.35); Sfx.tone(110, 0.2, 0.2, 'square', 0.6); }
+      if (Math.random() < 0.4) { const r = Math.random(); if (r < 0.5) { const a = pick(Object.keys(AMMO)); this.makeLoot({ kind: 'ammo', a, n: AMMO[a].pick }, c.x, c.z); } else { const cc = pick(FLOOR_CONS); this.makeLoot({ kind: 'cons', c: cc, n: CONS[cc].pick }, c.x, c.z); } }
+    }
+  },
+  damageCrates(pos, R, dmg) { for (const c of World.crates) if (!c.wall.dead && Math.hypot(c.x - pos.x, c.y + c.s / 2 - pos.y, c.z - pos.z) < R + c.s * 0.5) this.damageCrate(c, dmg); },
   updateRockets(dt) {
     for (let i = this.rockets.length - 1; i >= 0; i--) {
       const r = this.rockets[i]; r.life -= dt;
+      if (r.kind === 'bolt') { if (this.updateBolt(r, dt)) { this.rockets.splice(i, 1); } continue; }
       const L = r.vel.length() * dt; const d = _v2.copy(r.vel).normalize();
       let hit = World.ray(r.pos.x, r.pos.y, r.pos.z, d.x, d.y, d.z, L + 0.3);
       let boom = hit < L + 0.3 || r.life <= 0;
@@ -283,8 +306,22 @@ const Game = {
       if (dist2(r.pos.x, r.pos.z, this.camPos.x, this.camPos.z) < 120 * 120) Effects.trail(r.pos);
     }
   },
+  updateBolt(r, dt) {
+    if (r.stuck) { r.stuck -= dt; if (r.stuck <= 0) { this.dynGroup.remove(r.mesh); return true; } return false; }
+    r.vel.y -= 9 * dt;
+    const L = r.vel.length() * dt; const d = _v2.copy(r.vel).normalize();
+    const res = traceShot(r.owner, r.pos, d, L + 0.2, 0);
+    if (res.target) {
+      const W = WEAPONS.crossbow; applyDamage(res.target, weaponDamage(W, r.rar, 20, res.head), r.owner, res.head, 'crossbow', r.pos.clone());
+      this.dynGroup.remove(r.mesh); return true;
+    }
+    if (res.t < L + 0.2 || r.life <= 0) { r.pos.addScaledVector(d, Math.min(res.t, L)); r.mesh.position.copy(r.pos); r.stuck = 3; Effects.impact(r.pos); if (World.lastWall && World.lastWall.crate) this.damageCrate(World.lastWall.crate, 60, r.pos); return false; }
+    r.pos.addScaledVector(r.vel, dt); r.mesh.position.copy(r.pos); r.mesh.lookAt(_v3.copy(r.pos).add(r.vel));
+    return false;
+  },
   explode(g, R, base, wtype) {
     R = R || 7.5; base = base || 95; wtype = wtype || 'grenade';
+    this.damageCrates(g.pos, R * 0.8, 250);
     Effects.boom(g.pos); Sfx.boom(g.pos.distanceTo(this.camPos));
     if (Settings.camShake && g.pos.distanceTo(this.player.pos) < 30) this.shake = 0.6;
     for (const f of this.fighters) {
@@ -450,6 +487,7 @@ const Game = {
     for (const f of this.fighters) if (f.alive) this.stepFighter(f, dt);
     this.updateKarts(dt);
     this.updateGrenades(dt);
+    Gags.update(dt);
     this.updateRockets(dt);
     this.updatePads(dt);
     this.updateKnocked(dt);
@@ -589,12 +627,19 @@ const Game = {
     const it = p.item;
     if (firing && it) {
       if (it.kind === 'weapon') {
-        if (W.auto || I.consume('fire') || I.consume('fireL') || (Settings.autoFire && this.aimTarget)) {
+        if (W.auto || I.consume('fire') || I.consume('fireL') || (Settings.autoFire && this.aimTarget && !W.grapple)) {
           const minT = this.camMinT || 0;
           this._o = this._o || new THREE.Vector3(); this._o.copy(this.camPos).addScaledVector(this.camDir, minT);
           if (canFire(p)) { playerShoot(p, this._o, this.camDir, 0); p.emoteT = 0; }
         }
       } else if (it.kind === 'cons') { if (I.consume('fire') || I.consume('fireL') || CONS[it.c].throw === undefined) this.useItem(p); }
+    }
+    // rafale : les tirs suivants partent tout seuls
+    if (p.burstLeft > 0 && p.fireT <= 0 && p.weapon && WEAPONS[p.weapon.w].burst) { this._o = this._o || new THREE.Vector3(); this._o.copy(this.camPos).addScaledVector(this.camDir, this.camMinT || 0); if (canFire(p)) playerShoot(p, this._o, this.camDir, 0); else p.burstLeft = 0; }
+    if (I.consume('gag') && p.gag) {
+      const t = World.ray(this.camPos.x, this.camPos.y, this.camPos.z, this.camDir.x, this.camDir.y, this.camDir.z, 70);
+      const tgt = this.aimTarget ? this.aimTarget.pos.clone() : this.camPos.clone().addScaledVector(this.camDir, Math.min(t, 70));
+      if (t >= 70 && !this.aimTarget && (p.gag.g === 'piano' || p.gag.g === 'anvil')) HUD.message('Vise le sol à moins de 70 m', 1.2); else Gags.use(p, tgt);
     }
     I.pressed.fire = false; I.pressed.fireL = false;
     // interactions
@@ -633,7 +678,7 @@ const Game = {
         if (Settings.autoPickup && it.kind === 'cons' && !it.dropped && this.pickup(p, it, true)) continue;
         if (Settings.autoPickup && it.kind === 'weapon' && p.freeSlot() >= 0 && !it.dropped) { if (this.pickup(p, it, true)) continue; }
       }
-      if (d < bd) { bd = d; best = it; label = it.kind === 'weapon' ? `<small style="color:${RARITY[it.rar].c}">${RARITY[it.rar].n}</small>${WEAPONS[it.w].n}` : it.kind === 'cons' ? `<small>×${it.n}</small>${CONS[it.c].n}` : `<small>×${it.n}</small>${AMMO[it.a].n}`; }
+      if (d < bd) { bd = d; best = it; label = it.kind === 'gag' ? `<small style="color:${RARITY[GAGS[it.g].rar].c}">Gag · ${GAGS[it.g].d}</small>${GAGS[it.g].n}` : it.kind === 'weapon' ? `<small style="color:${RARITY[it.rar].c}">${RARITY[it.rar].n}</small>${WEAPONS[it.w].n}` : it.kind === 'cons' ? `<small>×${it.n}</small>${CONS[it.c].n}` : `<small>×${it.n}</small>${AMMO[it.a].n}`; }
     }
     const containers = this.chests.concat(this.supplies.filter(s => s.landed));
     for (const c of containers) { if (c.open) continue; const d = dist2(p.pos.x, p.pos.z, c.pos.x, c.pos.z); if (d < bd + 1) { bd = d; best = c; label = c.isSupply ? '<small>maintenir</small>Ouvrir le ravitaillement' : '<small>maintenir</small>Ouvrir le coffre'; } }
@@ -708,12 +753,17 @@ const Game = {
       const g = this.grenades[i]; g.t -= dt; g.vel.y -= 22 * dt;
       const L = g.vel.length() * dt; const dir = _v2.copy(g.vel).normalize();
       const hit = World.ray(g.pos.x, g.pos.y, g.pos.z, dir.x, dir.y, dir.z, L + 0.2, true);
-      if (hit < L + 0.2) { g.vel.x *= -0.4; g.vel.z *= -0.4; }
+      const bnc = g.kind === 'bouncy' ? 0.85 : 0.4;
+      if (hit < L + 0.2) { g.vel.x *= -bnc; g.vel.z *= -bnc; if (g.kind === 'bouncy') Sfx.tone(500, 0.08, 0.12, 'sine', 2); }
       else g.pos.addScaledVector(g.vel, dt);
       const gy = World.ground(g.pos.x, g.pos.z, g.pos.y);
-      if (g.pos.y < gy + 0.2) { g.pos.y = gy + 0.2; g.vel.y = Math.abs(g.vel.y) * 0.35; g.vel.x *= 0.6; g.vel.z *= 0.6; }
+      if (g.pos.y < gy + 0.2) { g.pos.y = gy + 0.2; g.vel.y = Math.abs(g.vel.y) * (g.kind === 'bouncy' ? 0.75 : 0.35); g.vel.x *= g.kind === 'bouncy' ? 0.9 : 0.6; g.vel.z *= g.kind === 'bouncy' ? 0.9 : 0.6; }
       g.mesh.position.copy(g.pos); g.mesh.rotation.x += dt * 8;
-      if (g.t <= 0) { this.explode(g); this.dynGroup.remove(g.mesh); this.grenades.splice(i, 1); }
+      if (g.t <= 0) {
+        if (g.kind === 'smoke') Gags.addSmoke(g.pos); else if (g.kind === 'bubble') Gags.addBubble(_v1.set(g.pos.x, World.ground(g.pos.x, g.pos.z, g.pos.y), g.pos.z));
+        else if (g.kind === 'bouncy') this.explode(g, 6, 80, 'grenade'); else this.explode(g);
+        this.dynGroup.remove(g.mesh); this.grenades.splice(i, 1);
+      }
     }
   },
   updateSupplies(dt) {
@@ -770,9 +820,15 @@ const Game = {
     }
     if (f.kart) { this.animate(f, dt); return; }
     // au sol
-    let sp = f.knocked ? 1.8 : inp.speed;
+    let sp = f.knocked ? 1.8 : f.stunT > 0 ? 0 : f.flatT > 0 ? 2.4 : f.boxT > 0 ? Math.min(inp.speed, 3) : f.floatT > 0 ? 4.5 : inp.speed;
     const k = f.onGround ? 1 - Math.exp(-14 * dt) : 1 - Math.exp(-2.5 * dt);
-    if (f.slideT > 0 && f.slideDir) {
+    if (f.grapple) {
+      const g = f.grapple; g.t -= dt; const dx = g.p.x - f.pos.x, dy = g.p.y - f.pos.y, dz = g.p.z - f.pos.z; const d = Math.hypot(dx, dy, dz);
+      if (d < 1.6 || g.t <= 0) { f.grapple = null; f.vy = 7; f.vel.multiplyScalar(0.5); }
+      else { const v = 34; f.vel.set(dx / d * v, 0, dz / d * v); f.vy = dy / d * v; }
+    } else if (f.slipT > 0) {
+      f.vel.x *= Math.pow(0.6, dt); f.vel.z *= Math.pow(0.6, dt); f.yaw += dt * 9;
+    } else if (f.slideT > 0 && f.slideDir) {
       f.slideT -= dt; const v = 6 + 9 * (f.slideT / 0.85);
       f.vel.x = lerp(f.vel.x, f.slideDir.x * v + inp.dx * 1.5, k); f.vel.z = lerp(f.vel.z, f.slideDir.z * v + inp.dz * 1.5, k);
       if (f.isPlayer && Math.random() < 0.5) Effects.burst(_v1.set(f.pos.x, f.pos.y + 0.1, f.pos.z), '#e8dcc0', 1, 2, 0.4, 0.4);
@@ -787,7 +843,9 @@ const Game = {
     if (nh < -1.4 && nh < World.h(ox, oz) - 0.01) { f.pos.x = ox; f.pos.z = oz; }
     const gy = World.ground(f.pos.x, f.pos.z, f.pos.y);
     if (inp.jump && f.onGround) { f.vy = 8.4; f.onGround = false; if (f.crouch) f.crouch = false; }
-    f.vy -= 24 * dt; f.pos.y += f.vy * dt;
+    if (f.grapple) f.pos.y += f.vy * dt;
+    else if (f.floatT > 0) { const ty = World.h(f.pos.x, f.pos.z) + 9; f.vy = lerp(f.vy, (ty - f.pos.y) * 1.5, 1 - Math.exp(-3 * dt)); f.pos.y += f.vy * dt; }
+    else { f.vy -= 24 * dt; f.pos.y += f.vy * dt; }
     if (f.pos.y <= gy) { f.pos.y = gy; f.vy = 0; f.onGround = true; }
     else if (f.onGround && f.pos.y - gy < 0.7 && f.vy <= 0) { f.pos.y = gy; f.vy = 0; }
     else f.onGround = false;
@@ -870,7 +928,7 @@ const Game = {
     // collision caméra
     const pivot = new THREE.Vector3().copy(target).addScaledVector(right, side * 0.5);
     const dx = want.x - pivot.x, dy = want.y - pivot.y, dz = want.z - pivot.z; const L = Math.hypot(dx, dy, dz);
-    if (L > 0.01 && v.state !== 'bus') { const t = World.ray(pivot.x, pivot.y, pivot.z, dx / L, dy / L, dz / L, L + 0.3); if (t < L + 0.3) want.set(pivot.x + dx / L * (t - 0.3), pivot.y + dy / L * (t - 0.3), pivot.z + dz / L * (t - 0.3)); }
+    if (L > 0.01 && v.state !== 'bus') { const t = World.ray(pivot.x, pivot.y, pivot.z, dx / L, dy / L, dz / L, L + 0.3, false, true); if (t < L + 0.3) want.set(pivot.x + dx / L * (t - 0.3), pivot.y + dy / L * (t - 0.3), pivot.z + dz / L * (t - 0.3)); }
     const gy = World.h(want.x, want.z) + 0.4; if (want.y < gy) want.y = gy;
     this.camPos.copy(want);
     // distance minimale du rayon de tir (devant le joueur)

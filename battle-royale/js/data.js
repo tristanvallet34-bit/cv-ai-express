@@ -32,9 +32,12 @@ const WEAPONS = {
   shotgun: { n: 'Pompe Tonnerre', short: 'POMPE', ammo: 'shells', dmg: 10, rate: 0.85, mag: 5, reload: 3.0, spread: 0.09, ads: 0.075, range: 38, pellets: 10, auto: false, head: 1.5, min: 0, max: 4, len: 0.8, sound: { f: 700, len: 0.25, vol: 0.75 }, botRange: 12, zoom: 1.15 },
   sniper: { n: 'Sniper Éclair', short: 'SNIPER', ammo: 'heavy', dmg: 102, rate: 1.35, mag: 4, reload: 2.7, spread: 0.07, ads: 0.0, range: 650, pellets: 1, auto: false, head: 2.5, min: 2, max: 4, len: 1.15, sound: { f: 900, len: 0.35, vol: 0.85 }, botRange: 220, zoom: 4, scope: true },
   rocket: { n: 'Lance-Pétard', short: 'LANCE-PÉTARD', ammo: 'rockets', dmg: 105, rate: 1.1, mag: 1, reload: 2.4, spread: 0.01, ads: 0.0, range: 300, pellets: 1, auto: false, head: 1, min: 3, max: 4, len: 0.9, sound: { f: 400, len: 0.4, vol: 0.7 }, botRange: 45, zoom: 1.3, projectile: true },
+  crossbow: { n: 'Arbalète Hop', short: 'ARBALÈTE', ammo: 'heavy', dmg: 82, rate: 0.85, mag: 3, reload: 1.8, spread: 0.02, ads: 0.0, range: 260, pellets: 1, auto: false, head: 2.0, min: 1, max: 4, len: 0.8, sound: { f: 600, len: 0.12, vol: 0.4 }, botRange: 70, zoom: 2, projectile: 'bolt' },
+  burst: { n: 'Rafale Triple', short: 'RAFALE', ammo: 'medium', dmg: 27, rate: 0.42, mag: 24, reload: 2.0, spread: 0.022, ads: 0.006, range: 190, pellets: 1, burst: 3, auto: false, head: 1.7, min: 1, max: 4, len: 0.8, sound: { f: 1500, len: 0.08, vol: 0.45 }, botRange: 70, zoom: 1.6 },
+  grapple: { n: 'Grappin Boing', short: 'GRAPPIN', ammo: null, dmg: 0, rate: 0.6, mag: 4, reload: 0, spread: 0, ads: 0, range: 60, pellets: 1, auto: false, head: 1, min: 2, max: 2, len: 0.6, sound: { f: 700, len: 0.1, vol: 0.3 }, botRange: 0, zoom: 1.2, grapple: true },
   minigun: { n: 'Mini-Tornade', short: 'MITRAILLEUSE', ammo: 'medium', dmg: 14, rate: 0.055, mag: 80, reload: 3.6, spread: 0.06, ads: 0.045, range: 120, pellets: 1, auto: true, head: 1.3, min: 3, max: 4, len: 1.0, sound: { f: 1600, len: 0.05, vol: 0.4 }, botRange: 40, zoom: 1.2 },
 };
-const FLOOR_WEAPONS = ['pistol', 'pistol', 'smg', 'smg', 'ar', 'ar', 'ar', 'shotgun', 'shotgun', 'sniper', 'rocket'];
+const FLOOR_WEAPONS = ['pistol', 'pistol', 'smg', 'smg', 'ar', 'ar', 'ar', 'burst', 'shotgun', 'shotgun', 'sniper', 'crossbow', 'rocket', 'grapple'];
 
 const CONS = {
   bandage: { n: 'Bandages', time: 2.4, hp: 15, cap: 75, stack: 15, pick: 5, c: '#ff6b6b', icon: '✚' },
@@ -43,8 +46,11 @@ const CONS = {
   shieldB: { n: 'Méga-bouclier', time: 4.5, sh: 50, shcap: 100, stack: 3, pick: 1, c: '#2a7bff', icon: '◆' },
   fizz: { n: 'Soda Pétillant', time: 1.5, hp: 15, cap: 100, sh: 10, shcap: 100, stack: 4, pick: 2, c: '#c66bff', icon: '●' },
   grenade: { n: 'Grenade Boum', time: 0, throw: true, stack: 6, pick: 3, c: '#7bd36b', icon: '✹' },
+  bouncy: { n: 'Bombe Boing', time: 0, throw: true, stack: 4, pick: 2, c: '#ff8a3d', icon: '✸' },
+  smoke: { n: 'Fumigène', time: 0, throw: true, stack: 4, pick: 2, c: '#d8d4e4', icon: '☁' },
+  bubble: { n: 'Bulle bouclier', time: 0, throw: true, stack: 2, pick: 1, c: '#7fd8ff', icon: '◯' },
 };
-const FLOOR_CONS = ['bandage', 'bandage', 'bandage', 'shieldS', 'shieldS', 'shieldB', 'medkit', 'fizz', 'grenade', 'grenade'];
+const FLOOR_CONS = ['bandage', 'bandage', 'bandage', 'shieldS', 'shieldS', 'shieldB', 'medkit', 'fizz', 'grenade', 'grenade', 'bouncy', 'smoke', 'bubble'];
 
 // ---------- Skins & cosmétiques ----------
 // hat: none, cap, cone, ears, helmet, crown, mohawk, beanie, horns, halo

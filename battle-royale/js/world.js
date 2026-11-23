@@ -15,7 +15,7 @@ const World = {
     { n: 'Camp des Pins', x: -125, z: 110, r: 36, type: 'cabin', count: 4 },
     { n: 'Plage Coco', x: 60, z: 330, r: 36, type: 'town', count: 4 },
   ],
-  walls: [], circles: [], buildings: [], grid: new Map(),
+  walls: [], circles: [], buildings: [], grid: new Map(), crates: [],
   lootSpots: [], chestSpots: [], kartSpots: [],
   built: false,
 
@@ -44,6 +44,7 @@ const World = {
     const c = this.cell(x, z);
     if (c) {
       for (const w of c.walls) {
+        if (w.dead) continue;
         if (x > w.x0 && x < w.x1 && z > w.z0 && z < w.z1 && w.y1 > g && w.y1 <= (y == null ? g : y) + 0.55) g = w.y1;
       }
       for (const b of c.blds) if (x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1 && b.floor > g) g = b.floor;
@@ -70,6 +71,7 @@ const World = {
       for (let ox = -1; ox <= 1; ox++) for (let oz = -1; oz <= 1; oz++) {
         const cc = this.grid.get(this.key(ix + ox, iz + oz)); if (!cc) continue;
         for (const w of cc.walls) {
+          if (w.dead) continue;
           if (p.y + height < w.y0 || p.y > w.y1 - 0.5) continue;
           const nx = clamp(p.x, w.x0, w.x1), nz = clamp(p.z, w.z0, w.z1);
           let dx = p.x - nx, dz = p.z - nz; const d2 = dx * dx + dz * dz;
@@ -96,12 +98,13 @@ const World = {
     return null;
   },
   // Rayon contre murs/troncs/terrain. Retourne la distance de l'impact ou maxT
-  ray(ox, oy, oz, dx, dy, dz, maxT, skipTerrain) {
-    let best = maxT;
+  ray(ox, oy, oz, dx, dy, dz, maxT, skipTerrain, skipDyn) {
+    let best = maxT; this.lastWall = null;
     const ix = 1 / (dx || 1e-9), iy = 1 / (dy || 1e-9), iz = 1 / (dz || 1e-9);
     const ex = ox + dx * maxT, ez = oz + dz * maxT;
     const bx0 = Math.min(ox, ex), bx1 = Math.max(ox, ex), bz0 = Math.min(oz, ez), bz1 = Math.max(oz, ez);
     for (const w of this.walls) {
+      if (w.dead) continue;
       if (w.x1 < bx0 || w.x0 > bx1 || w.z1 < bz0 || w.z0 > bz1) continue;
       let t1 = (w.x0 - ox) * ix, t2 = (w.x1 - ox) * ix;
       let tmin = Math.min(t1, t2), tmax = Math.max(t1, t2);
@@ -109,7 +112,7 @@ const World = {
       tmin = Math.max(tmin, Math.min(t1, t2)); tmax = Math.min(tmax, Math.max(t1, t2));
       t1 = (w.z0 - oz) * iz; t2 = (w.z1 - oz) * iz;
       tmin = Math.max(tmin, Math.min(t1, t2)); tmax = Math.min(tmax, Math.max(t1, t2));
-      if (tmax >= Math.max(tmin, 0) && tmin < best && tmin > 0) best = tmin;
+      if (tmax >= Math.max(tmin, 0) && tmin < best && tmin > 0) { best = tmin; this.lastWall = w; }
     }
     // troncs (cellules le long du rayon)
     const seen = new Set();
@@ -132,14 +135,16 @@ const World = {
     if (!skipTerrain) {
       const st = 2.5;
       for (let t = st; t < best; t += st) {
-        if (oy + dy * t < this.h(ox + dx * t, oz + dz * t)) { best = Math.max(0, t - st * 0.5); break; }
+        if (oy + dy * t < this.h(ox + dx * t, oz + dz * t)) { best = Math.max(0, t - st * 0.5); this.lastWall = null; break; }
       }
     }
+    if (!skipDyn && Gags.bubbles.length) { const bt = Gags.ray(ox, oy, oz, dx, dy, dz, best); if (bt < best) { best = bt; this.lastWall = null; } }
     return best;
   },
   los(a, b) { // a,b: {x,y,z}
     const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z; const L = Math.hypot(dx, dy, dz);
     if (L < 0.01) return true;
+    if (Gags.smokes.length && Gags.smokeBlocks(a, b)) return false;
     return this.ray(a.x, a.y, a.z, dx / L, dy / L, dz / L, L) >= L - 0.3;
   },
 
@@ -183,6 +188,7 @@ const World = {
       else this.addCoverCluster(x, z, R);
     }
     this.buildPads(R);
+    this.buildCrates(scene);
     const bm = new THREE.Mesh(gb.build(), Look.mat({ vertexColors: true }));
     bm.castShadow = true; bm.receiveShadow = true; scene.add(bm); this.bldMesh = bm;
     const rm = new THREE.Mesh(rb.build(), Look.mat({ vertexColors: true }));
@@ -207,6 +213,25 @@ const World = {
       if (this.h(x, z) < 2) continue; this.chestSpots.push({ x, z, out: true });
     }
     this.buildMinimap();
+  },
+  // caisses destructibles (instanciées)
+  buildCrates(scene) {
+    const b = new GeoBuilder(); b.box(0, 0.5, 0, 1, 1, 1, '#c58a4f'); b.box(0, 0.5, 0, 1.04, 0.18, 1.04, '#8a5a30'); b.box(0, 0.5, 0, 1.04, 1.04, 0.18, '#8a5a30');
+    const m = new THREE.InstancedMesh(b.build(), Look.mat({ vertexColors: true }), this.crates.length);
+    m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; this.crateMesh = m;
+    this.crates.forEach((c, i) => { c.i = i; c.wall.crate = c; }); this.resetCrates();
+    scene.add(m); if (Look.toon) Look.addOutline(m, 0.05);
+  },
+  resetCrates() {
+    const d = new THREE.Object3D();
+    for (const c of this.crates) { c.hp = 110; c.wall.dead = false; d.position.set(c.x, c.y, c.z); d.rotation.set(0, c.rot, 0); d.scale.setScalar(c.s); d.updateMatrix(); this.crateMesh.setMatrixAt(c.i, d.matrix); }
+    this.crateMesh.instanceMatrix.needsUpdate = true;
+  },
+  breakCrate(c) {
+    if (c.wall.dead) return; c.wall.dead = true;
+    const d = new THREE.Object3D(); d.scale.setScalar(0.0001); d.updateMatrix(); this.crateMesh.setMatrixAt(c.i, d.matrix); this.crateMesh.instanceMatrix.needsUpdate = true;
+    // la caisse du dessus tombe aussi
+    for (const o of this.crates) if (o !== c && !o.wall.dead && Math.abs(o.x - c.x) < 0.1 && Math.abs(o.z - c.z) < 0.1 && o.y > c.y) this.breakCrate(o);
   },
   // champignons rebondissants
   buildPads(R) {
@@ -417,11 +442,9 @@ const World = {
     for (let i = 0; i < n; i++) {
       const px = x + (R() - 0.5) * 5, pz = z + (R() - 0.5) * 5, h = this.h(px, pz);
       const s = 1.3 + R() * 0.4;
-      const col = pick(['#c58a4f', '#b57a40', '#d39a5c']);
-      this.gb.box(px, h + s / 2, pz, s, s, s, col);
-      this.gb.box(px, h + s / 2, pz, s + 0.04, s * 0.18, s + 0.04, '#8a5a30');
-      this.addWall(px - s / 2, px + s / 2, pz - s / 2, pz + s / 2, h - 1, h + s, { cover: true });
-      if (i === 0 && R() < 0.35) { this.gb.box(px, h + s * 1.5, pz, s * 0.8, s * 0.8, s * 0.8, col); this.addWall(px - s * 0.4, px + s * 0.4, pz - s * 0.4, pz + s * 0.4, h + s, h + s * 1.9, { cover: true }); }
+      const w1 = this.addWall(px - s / 2, px + s / 2, pz - s / 2, pz + s / 2, h - 1, h + s, { cover: true });
+      this.crates.push({ x: px, y: h, z: pz, s, rot: R() * 0.4, wall: w1 });
+      if (i === 0 && R() < 0.35) { const w2 = this.addWall(px - s * 0.4, px + s * 0.4, pz - s * 0.4, pz + s * 0.4, h + s, h + s * 1.9, { cover: true }); this.crates.push({ x: px, y: h + s, z: pz, s: s * 0.8, rot: R(), wall: w2 }); }
     }
   },
   addCastle(p, R) {
@@ -500,7 +523,7 @@ const World = {
   },
   nearWall(x, z, pad) {
     const c = this.cell(x, z); if (!c) return false;
-    for (const w of c.walls) if (x > w.x0 - pad && x < w.x1 + pad && z > w.z0 - pad && z < w.z1 + pad) return true;
+    for (const w of c.walls) if (!w.dead && x > w.x0 - pad && x < w.x1 + pad && z > w.z0 - pad && z < w.z1 + pad) return true;
     return false;
   },
   buildSky(scene, R) {

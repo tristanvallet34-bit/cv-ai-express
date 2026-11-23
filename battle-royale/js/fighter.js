@@ -53,6 +53,16 @@ const Models = {
     const k = 'w_' + type + rar; if (this.cache[k]) return this.cache[k];
     const W = WEAPONS[type]; const b = new GeoBuilder(); const rc = RARITY[rar].c; const L = W.len;
     const dark = '#3a3645', mid = '#5a556a';
+    if (type === 'crossbow') {
+      b.box(0, 0, -0.3, 0.09, 0.1, 0.8, '#8a5a3c'); b.box(0, 0.02, -0.62, 0.9, 0.06, 0.08, dark); b.box(0, 0.06, -0.3, 0.02, 0.02, 0.7, rc);
+      b.box(0, -0.1, -0.05, 0.07, 0.18, 0.1, dark); b.box(0, 0.06, -0.7, 0.04, 0.04, 0.3, '#d9d2c0');
+      const g = b.build(); this.cache[k] = g; return g;
+    }
+    if (type === 'grapple') {
+      b.box(0, 0, -0.2, 0.14, 0.16, 0.45, '#ffcf3f'); b.box(0, -0.12, -0.05, 0.08, 0.18, 0.1, dark);
+      b.addGeo(new THREE.ConeGeometry(0.08, 0.2, 4).rotateX(-Math.PI / 2), M4(0, 0, -0.55), '#5a556a'); b.box(0, 0.1, -0.2, 0.15, 0.03, 0.3, rc);
+      const g = b.build(); this.cache[k] = g; return g;
+    }
     if (type === 'rocket') {
       b.addGeo(new THREE.CylinderGeometry(0.11, 0.11, 1.0, 10).rotateX(Math.PI / 2), M4(0, 0.04, -0.35), '#4f9a3f');
       b.addGeo(new THREE.CylinderGeometry(0.13, 0.13, 0.12, 10).rotateX(Math.PI / 2), M4(0, 0.04, -0.85), rc);
@@ -130,7 +140,8 @@ const Models = {
   consumable(type) {
     const k = 'cons_' + type; if (this.cache[k]) return this.cache[k];
     const c = CONS[type]; const b = new GeoBuilder();
-    if (type === 'grenade') { b.addGeo(new THREE.SphereGeometry(0.2, 8, 6), null, '#4f9a3f'); b.box(0, 0.2, 0, 0.1, 0.12, 0.1, '#3a3645'); }
+    if (type === 'bouncy' || type === 'smoke' || type === 'bubble') { b.addGeo(new THREE.SphereGeometry(type === 'smoke' ? 0.16 : 0.2, 8, 6), M4(0, 0, 0, 0, 0, 0, 1, type === 'smoke' ? 1.6 : 1, 1), c.c); b.box(0, type === 'smoke' ? 0.28 : 0.2, 0, 0.08, 0.1, 0.08, '#3a3645'); }
+    else if (type === 'grenade') { b.addGeo(new THREE.SphereGeometry(0.2, 8, 6), null, '#4f9a3f'); b.box(0, 0.2, 0, 0.1, 0.12, 0.1, '#3a3645'); }
     else if (type === 'shieldS' || type === 'shieldB' || type === 'fizz') { const s = type === 'shieldB' ? 1.4 : 1; b.addGeo(new THREE.CylinderGeometry(0.15 * s, 0.17 * s, 0.4 * s, 8), null, c.c); b.addGeo(new THREE.CylinderGeometry(0.06 * s, 0.06 * s, 0.15 * s, 6), M4(0, 0.25 * s, 0), '#ffffff'); }
     else { const s = type === 'medkit' ? 1.5 : 1; b.box(0, 0, 0, 0.45 * s, 0.3 * s, 0.3 * s, '#ffffff'); b.box(0, 0, -0.151 * s, 0.25 * s, 0.08 * s, 0.01, c.c); b.box(0, 0, -0.151 * s, 0.08 * s, 0.25 * s, 0.01, c.c); }
     const g = b.build(); this.cache[k] = g; return g;
@@ -199,7 +210,7 @@ class Fighter {
     while (n > 0) { const i = this.freeSlot(); if (i < 0) break; const add = Math.min(n, def.stack); this.slots[i] = { kind: 'cons', c: type, n: add }; n -= add; }
     return n;
   }
-  weaponScore(it) { if (!it || it.kind !== 'weapon') return 0; const W = WEAPONS[it.w]; return (W.dmg * W.pellets / W.rate) * RARITY[it.rar].m * (it.w === 'sniper' ? 0.8 : 1) + (it.w === 'shotgun' ? 60 : 0); }
+  weaponScore(it) { if (!it || it.kind !== 'weapon') return 0; const W = WEAPONS[it.w]; if (W.grapple) return 1; return (W.dmg * W.pellets / W.rate) * RARITY[it.rar].m * (it.w === 'sniper' ? 0.8 : 1) + (it.w === 'shotgun' ? 60 : 0); }
   hasHeal() { return this.slots.some(s => s && s.kind === 'cons' && !CONS[s.c].throw); }
   totalAmmoFor(w) { return this.ammo[WEAPONS[w.w].ammo]; }
 }
@@ -243,13 +254,13 @@ function muzzlePos(f, out) {
 
 function canFire(f) {
   const w = f.weapon; if (!w || !f.alive || f.knocked) return false;
-  if (f.fireT > 0 || f.reloadT > 0 || f.switchT > 0 || f.state !== 'ground') return false;
-  if (w.mag <= 0) { startReload(f); return false; }
+  if (f.fireT > 0 || f.reloadT > 0 || f.switchT > 0 || f.state !== 'ground' || f.slipT > 0 || f.flatT > 0 || f.stunT > 0 || f.grapple) return false;
+  if (w.mag <= 0) { if (WEAPONS[w.w].ammo === null) { f.slots[f.cur] = null; return false; } startReload(f); return false; }
   return true;
 }
 function startReload(f) {
   const w = f.weapon; if (!w || f.reloadT > 0) return;
-  const W = WEAPONS[w.w]; if (w.mag >= W.mag || f.ammo[W.ammo] <= 0) return;
+  const W = WEAPONS[w.w]; if (!W.ammo || w.mag >= W.mag || f.ammo[W.ammo] <= 0) return;
   f.reloadT = W.reload * (1 - RARITY[w.rar].r); f.using = null;
   if (f.isPlayer) Sfx.reload();
 }
@@ -269,11 +280,17 @@ function playerShoot(f, camPos, camDir, camMinT) {
   if (W.scope && f.ads) spr = moving ? 0.01 : 0;
   muzzlePos(f, _v1);
   let anyHit = false;
+  if (W.grapple) {
+    if (Gags.fireGrapple(f, camPos, camDir)) { w.mag--; f.fireT = W.rate; if (w.mag <= 0) f.slots[f.cur] = null; }
+    return false;
+  }
   if (W.projectile) {
     const r = traceShot(f, camPos, camDir, W.range, camMinT);
     _v3.copy(camPos).addScaledVector(camDir, r.t);
-    Game.fireRocket(f, _v1, _v2.copy(_v3).sub(_v1).normalize(), w.rar);
-    Effects.flash(_v1); w.mag--; f.fireT = W.rate; f.lastShotT = Game.time; Sfx.rocket(0); f.recoil += 0.06; f.kick = 0.5;
+    const bolt = W.projectile === 'bolt';
+    if (bolt) _v3.y += r.t * r.t * 0.00045; // compense la gravité
+    Game.fireRocket(f, _v1, _v2.copy(_v3).sub(_v1).normalize(), w.rar, bolt ? 'bolt' : 'rocket');
+    Effects.flash(_v1); w.mag--; f.fireT = W.rate; f.lastShotT = Game.time; if (bolt) Sfx.shot(W, 0); else Sfx.rocket(0); f.recoil += bolt ? 0.03 : 0.06; f.kick = 0.5;
     if (Settings.camShake) Game.shake = Math.max(Game.shake, 0.3);
     Game.noise(f, 120);
     if (w.mag <= 0) setTimeout(() => { if (f.weapon === w) startReload(f); }, 300);
@@ -293,11 +310,15 @@ function playerShoot(f, camPos, camDir, camMinT) {
       const dmg = weaponDamage(W, w.rar, d, r.head);
       applyDamage(r.target, dmg, f, r.head, w.w, _v3);
       anyHit = true;
-    } else if (p < 3) Effects.impact(_v3);
+    } else {
+      if (p < 3) Effects.impact(_v3);
+      if (!blocked && World.lastWall && World.lastWall.crate) Game.damageCrate(World.lastWall.crate, weaponDamage(W, w.rar, 10, false), _v3);
+    }
     if (p < (W.pellets > 1 ? 4 : 1)) Effects.tracer(_v1, _v3, W.pellets > 1);
   }
   Effects.flash(_v1); Effects.casing(_v1, f.yaw);
   w.mag--; f.fireT = W.rate; f.lastShotT = Game.time; f.kick = W.pellets > 1 || W.scope ? 0.45 : 0.18;
+  if (W.burst) { if (f.burstLeft > 0) { f.burstLeft--; f.fireT = f.burstLeft > 0 ? 0.07 : W.rate; } else { f.burstLeft = W.burst - 1; f.fireT = 0.07; } }
   f.spread = Math.min(f.spread + W.spread * 0.25, W.spread * 1.2);
   Sfx.shot(W, 0); Game.lastCombat = Game.time;
   Game.noise(f, W.range > 300 ? 160 : 90);
@@ -333,14 +354,15 @@ function botShoot(f, target, dist) {
   if (W.projectile) {
     const err = (1 - L.acc) * dist * 0.12;
     _v3.set(tp.x + (Math.random() - 0.5) * err, tp.y - 0.8 + (Math.random() - 0.5) * err * 0.5, tp.z + (Math.random() - 0.5) * err).sub(_v1).normalize();
-    Game.fireRocket(f, _v1, _v3, w.rar);
+    const bolt = W.projectile === 'bolt'; if (bolt) _v3.y += dist * 0.0005;
+    Game.fireRocket(f, _v1, _v3, w.rar, bolt ? 'bolt' : 'rocket');
     w.mag--; f.fireT = W.rate * 1.6; f.lastShotT = Game.time;
     if (Game.player && dist2(f.pos.x, f.pos.z, Game.camPos.x, Game.camPos.z) < 160 * 160) Sfx.rocket(Math.sqrt(dist2(f.pos.x, f.pos.z, Game.camPos.x, Game.camPos.z)));
     Game.noise(f, 120); return;
   }
   let hits = 0, headHit = false;
   const visible = World.los(_v1, tp);
-  for (let k = 0; k < W.pellets; k++) if (visible && Math.random() < p) { hits++; if (Math.random() < 0.12 + L.acc * 0.2) headHit = true; }
+  for (let k = 0; k < (W.burst || W.pellets); k++) if (visible && Math.random() < p) { hits++; if (Math.random() < 0.12 + L.acc * 0.2) headHit = true; }
   const nearPlayer = Game.player && dist2(f.pos.x, f.pos.z, Game.camPos.x, Game.camPos.z) < 160 * 160;
   if (hits > 0) {
     let dmg = 0; for (let k = 0; k < hits; k++) dmg += weaponDamage(W, w.rar, dist, headHit && k === 0);
@@ -352,7 +374,7 @@ function botShoot(f, target, dist) {
     if (target.isPlayer && dist < 40) Sfx.tone(3000 + Math.random() * 800, 0.05, 0.05, 'sine', 0.5); // sifflement
   }
   if (nearPlayer) { Effects.flash(_v1); Sfx.shot(W, Math.sqrt(dist2(f.pos.x, f.pos.z, Game.camPos.x, Game.camPos.z))); }
-  w.mag--; f.fireT = W.rate * (W.auto ? 1.15 : 1.35 + Math.random() * 0.5); f.lastShotT = Game.time;
+  w.mag = Math.max(0, w.mag - (W.burst || 1)); f.fireT = W.rate * (W.auto ? 1.15 : 1.35 + Math.random() * 0.5); f.lastShotT = Game.time;
   Game.noise(f, W.range > 300 ? 160 : 90);
 }
 

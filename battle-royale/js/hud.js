@@ -95,7 +95,9 @@ const HUD = {
       $('fireBtnL').classList.toggle('use', !!(it && it.kind === 'cons'));
     }
     const w = p.weapon;
-    $('ammo').innerHTML = w ? `<b>${w.mag}</b> / ${p.ammo[WEAPONS[w.w].ammo]}` : (p.item ? '' : '—');
+    $('ammo').innerHTML = w ? (WEAPONS[w.w].ammo ? `<b>${w.mag}</b> / ${p.ammo[WEAPONS[w.w].ammo]}` : `<b>${w.mag}</b> charges`) : (p.item ? '' : '—');
+    const gb = $('gagBtn'); const gk = p.gag ? p.gag.g + p.gag.n : '';
+    if (gb.dataset.k !== gk) { gb.dataset.k = gk; gb.hidden = !p.gag; if (p.gag) { const Gd = GAGS[p.gag.g]; gb.querySelector('span').innerHTML = `<svg viewBox="0 0 24 24"><path fill="currentColor" d="${Gd.svg}"/></svg>`; gb.querySelector('em').textContent = p.gag.n > 1 ? '×' + p.gag.n : ''; gb.style.color = Gd.c === '#1a1a2e' || Gd.c === '#2a2433' ? '#fff' : Gd.c; gb.style.borderColor = RARITY[Gd.rar].c; } }
     // rechargement / soin
     const pr = $('progress');
     if (p.knocked) { pr.hidden = false; pr.style.setProperty('--p', p.reviveT > 0 ? p.reviveT / 4 : p.bleed / 100); $('progTxt').textContent = p.reviveT > 0 ? 'On te réanime…' : 'À terre — réanimation possible'; pr.classList.toggle('bad', p.reviveT <= 0); }
@@ -226,6 +228,9 @@ const HUD = {
 const WEAPON_SVG = {
   pistol: 'M18 6h28v7H30l-2 9h-8l2-9h-4z',
   rocket: 'M4 8h6V6h40l8 3v6l-8 3H10v-2H4zM24 18h6v5h-6z',
+  crossbow: 'M10 11h40v3H10zM46 2l4 2v16l-4 2-2-2V4zM14 14h6v8h-6zM50 11l8 1.5L50 14z',
+  burst: 'M2 8h12l4-2h26v3h16v3H44v3h-4v6h-8v-6H20l-6 5H4l4-6H2z',
+  grapple: 'M14 8h26v8H14zM18 16h6v6h-6zM40 10h8l10-6v16l-10-6h-8z',
   smg: 'M8 7h40v3h8v4H44l-2 3h-6l1 6h-6l-1-6h-8l-2 6h-6l2-6H8z',
   ar: 'M2 8h12l4-2h26v3h16v3H44v3h-6l-1 7h-6l1-7H20l-6 5H4l4-6H2z',
   shotgun: 'M2 9h10l6-2h40v4H40v3H22l-8 6H4l6-6H2z',

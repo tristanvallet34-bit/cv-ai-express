@@ -71,7 +71,7 @@ const Input = {
     window.addEventListener('keydown', e => {
       if (e.target && (e.target.tagName === 'INPUT')) return;
       const k = e.key.toLowerCase(); if (this.keys[k]) return; this.keys[k] = true;
-      const map = { ' ': 'jump', 'c': 'crouch', 'control': 'crouch', 'r': 'reload', 'e': 'interact', 'm': 'map', 'h': 'heal', 'f': 'heal', 'g': 'emote', 'v': 'ping', 'escape': 'pause', 'tab': 'map' };
+      const map = { ' ': 'jump', 'c': 'crouch', 'control': 'crouch', 'r': 'reload', 'e': 'interact', 'm': 'map', 'h': 'heal', 'f': 'heal', 'g': 'emote', 'v': 'ping', 't': 'gag', 'escape': 'pause', 'tab': 'map' };
       if (map[k]) { e.preventDefault(); this.press(map[k]); }
       if (k >= '1' && k <= '5') this.press('slot' + (+k - 1));
       if (k === 'shift') this.sprintKey = true;

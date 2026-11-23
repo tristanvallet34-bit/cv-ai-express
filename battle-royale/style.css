@@ -353,3 +353,11 @@ body.lefthanded .btns .ping { left: calc(190 * var(--u)); }
 @keyframes streakIn { 0% { opacity: 0; transform: translate(-50%,-50%) scale(2.2) rotate(-6deg); } 12% { opacity: 1; transform: translate(-50%,-50%) scale(.95) rotate(-6deg); } 20% { transform: translate(-50%,-50%) scale(1.05) rotate(-6deg); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-60%) scale(1) rotate(-6deg); } }
 #killBanner { top: 15%; }
 #centerMsg { top: 25%; }
+/* ============ v3 sprint 2 : gag ============ */
+.btns .gag { right: calc(186 * var(--u)); bottom: calc(74 * var(--u)); width: calc(58 * var(--u)); height: calc(58 * var(--u)); background: rgba(189,99,255,.55); border-width: 3px; }
+.btns .gag span { display: grid; place-items: center; width: 60%; height: 60%; }
+.btns .gag span svg { width: 100%; height: 100%; }
+.btns .gag em { position: absolute; right: -2px; bottom: -4px; font-style: normal; font-size: calc(12 * var(--u)); background: var(--ink); border-radius: 8px; padding: 0 5px; }
+body.lefthanded .btns .gag { left: calc(186 * var(--u)); }
+body:not(.touch) .btns .gag { display: grid !important; right: auto; left: calc(50% + 180px); bottom: 14px; position: fixed; }
+#streak { top: 40%; }
