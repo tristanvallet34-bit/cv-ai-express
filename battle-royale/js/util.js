@@ -144,7 +144,8 @@ const Sfx = {
   thunder() { this.noise(1.6, 180, 0.5, 'lowpass'); setTimeout(() => this.noise(1.2, 120, 0.35), 180); },
   wind(v) { this.noise(0.25, 600 + v * 400, 0.04 + v * 0.05, 'bandpass', 0.8); },
   storm() { this.noise(0.6, 200, 0.12, 'bandpass', 2); },
-  startMusic() {
+  startMusic() { if (typeof Music !== 'undefined') { if (Music.theme !== 'lobby') Music.stop(); Music.start('lobby'); } },
+  _oldMusic() {
     if (!this.ctx || !this.musicOn || this.musicNode) return;
     const notes = [262, 330, 392, 523, 392, 330, 294, 349, 440, 587, 440, 349];
     let i = 0;
@@ -155,7 +156,7 @@ const Sfx = {
       if (i % 4 === 0) this.tone(f / 2, 0.4, 0.05, 'sine');
     }, 230);
   },
-  stopMusic() { if (this.musicNode) { clearInterval(this.musicNode); this.musicNode = null; } }
+  stopMusic() { if (typeof Music !== 'undefined') Music.stop(); }
 };
 
 function vibrate(ms) { try { if (Settings.vibration && navigator.vibrate) navigator.vibrate(ms); } catch (e) { } }

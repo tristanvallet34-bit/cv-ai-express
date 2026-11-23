@@ -4,7 +4,7 @@ window.addEventListener('load', () => {
   if (!window.THREE) { document.getElementById('splashTxt').textContent = 'Impossible de charger le moteur 3D. Vérifie ta connexion puis recharge la page.'; return; }
   Sfx.setVol(Settings.vol);
   Input.init();
-  HUD.init();
+  HUD.init(); Pings.init();
   setTimeout(() => {
     try { Game.init(); UI.init(); }
     catch (e) { console.error(e); document.getElementById('splashTxt').textContent = 'Erreur au chargement : ' + e.message; return; }

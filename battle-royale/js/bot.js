@@ -91,9 +91,20 @@ class BotAI {
       }
       if (best && best !== this.target) {
         const take = !this.target || bd < dist2(f.pos.x, f.pos.z, this.target.pos.x, this.target.pos.z) * 0.5;
-        if (take) { this.target = best; this.spotT = L.react * rand(0.7, 1.3); this.engageT = 0; }
+        if (take) {
+          this.target = best; this.spotT = L.react * rand(0.7, 1.3); this.engageT = 0;
+          if (f.team === G.playerTeam && G.player.alive && G.time - (this.lastPing || -99) > 10) { this.lastPing = G.time; Pings.add('enemy', best.pos, best, f); HUD.message(f.name + ' : ennemi repéré !', 1.6); }
+        }
       }
     }
+    // ---- pings du joueur (coéquipier) ----
+    if (this.ping && G.time - this.ping.t < 20 && !this.target) {
+      const pg = this.ping;
+      if (pg.type === 'enemy' && pg.ref && pg.ref.alive) { this.target = pg.ref; this.spotT = L.react; this.ping = null; }
+      else if (pg.type === 'loot' && pg.ref && !pg.ref.taken) { this.setGoal(pg.ref.pos.x, pg.ref.pos.z, 'loot', pg.ref); this.ping = null; return; }
+      else if (pg.type === 'go') { if (dist2(f.pos.x, f.pos.z, pg.pos.x, pg.pos.z) > 4 * 4) { this.setGoal(pg.pos.x + rand(-2, 2), pg.pos.z + rand(-2, 2), 'pinggo', null); return; } this.ping = null; }
+    }
+    if (this.goalKind === 'pinggo' && this.path.length) return;
     // ---- objectifs ----
     const st = G.storm;
     if (this.safePhase !== st.phase) { this.safePhase = st.phase; const a = Math.random() * TAU, r = Math.sqrt(Math.random()) * st.nr * 0.6; this.safe = { x: st.nx + Math.cos(a) * r, z: st.nz + Math.sin(a) * r }; }

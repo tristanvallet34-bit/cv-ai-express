@@ -112,7 +112,7 @@ const SETTINGS_DEF = {
   quality: 'auto', fpsCap: 60, showFps: false, sens: 1.0, adsSens: 0.7, invertY: false,
   aimAssist: true, autoFire: false, fov: 70, leftFire: true, leftHanded: false, hudScale: 1.0,
   vol: 0.7, music: true, vibration: true, dmgNumbers: true, autoPickup: true, botLevel: 'normal',
-  camShake: true, sprintAuto: true, minimapZoom: 1, name: 'Joueur', timeOfDay: 'random', soundViz: true,
+  camShake: true, sprintAuto: true, minimapZoom: 1, name: 'Joueur', timeOfDay: 'random', soundViz: true, announcer: true,
 };
 const Settings = Object.assign({}, SETTINGS_DEF, Store.get('settings', {}));
 function saveSettings() { Store.set('settings', Settings); }

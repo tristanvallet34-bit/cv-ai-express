@@ -23,7 +23,8 @@ const SETTINGS_UI = [
   { k: 'minimapZoom', n: 'Zoom de la mini-carte', t: 'range', min: 0.6, max: 2, step: 0.1, fmt: v => '×' + v.toFixed(1) },
   { sec: 'Audio & vibrations' },
   { k: 'vol', n: 'Volume général', t: 'range', min: 0, max: 1, step: 0.05, fmt: v => Math.round(v * 100) + '%' },
-  { k: 'music', n: 'Musique du menu', t: 'toggle' },
+  { k: 'music', n: 'Musique', t: 'toggle', d: 'Musique dynamique qui s\'intensifie avec l\'action' },
+  { k: 'announcer', n: 'Annonceur vocal', t: 'toggle', d: 'Doublé, Triplé, Top 10… annoncés à voix haute' },
   { k: 'vibration', n: 'Vibrations', t: 'toggle' },
   { sec: 'Partie' },
   { k: 'name', n: 'Pseudo', t: 'text' },
@@ -228,7 +229,7 @@ const UI = {
     if (k === 'hudScale') Game.resize();
     if (k === 'fov' && Game.camera) { Game.camera.fov = Settings.fov; Game.camera.updateProjectionMatrix(); }
     if (k === 'leftFire' || k === 'leftHanded') this.applyBodyClasses();
-    if (k === 'music') { Sfx.musicOn = Settings.music; if (Settings.music && Game.phase === 'lobby') Sfx.startMusic(); else Sfx.stopMusic(); }
+    if (k === 'music') { Sfx.musicOn = Settings.music; Music.setEnabled(Settings.music); if (Game.phase === 'lobby') Sfx.startMusic(); }
     if (k === 'name' || k === 'botLevel') { this.renderTop(); this.renderModes(); }
   },
   renderHelp(body) {

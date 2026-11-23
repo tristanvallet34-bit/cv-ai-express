@@ -299,7 +299,7 @@ function playerShoot(f, camPos, camDir, camMinT) {
   Effects.flash(_v1); Effects.casing(_v1, f.yaw);
   w.mag--; f.fireT = W.rate; f.lastShotT = Game.time; f.kick = W.pellets > 1 || W.scope ? 0.45 : 0.18;
   f.spread = Math.min(f.spread + W.spread * 0.25, W.spread * 1.2);
-  Sfx.shot(W, 0);
+  Sfx.shot(W, 0); Game.lastCombat = Game.time;
   Game.noise(f, W.range > 300 ? 160 : 90);
   // recul
   const rec = W.pellets > 1 ? 0.05 : W.scope ? 0.06 : W.rate < 0.1 ? 0.009 : 0.016;
@@ -373,10 +373,10 @@ function applyDamage(t, dmg, att, head, wtype, at) {
   if (att && att.isBot === false && att.isPlayer) {
     att.dmgDone += dmg; Game.stat('damage', dmg); if (head) { att.headshots++; Game.stat('head', 1); }
     if (Settings.dmgNumbers && at) HUD.dmgNumber(at, dmg, head, t.sh > 0 || broke);
-    HUD.hitmarker(head, t.hp <= 0); Sfx.hit(head); if (broke) Sfx.shieldBreak();
+    HUD.hitmarker(head, t.hp <= 0); Sfx.hit(head); if (broke) { Sfx.shieldBreak(); Haptic.play('shield'); } else Haptic.play(head ? 'head' : 'hit'); Game.lastCombat = Game.time;
   } else if (att && att.ai) att.dmgDone += dmg;
   if (t.isPlayer) {
-    if (att && att !== t) HUD.damageFrom(att.pos); Sfx.hurt(); vibrate(40);
+    if (att && att !== t) HUD.damageFrom(att.pos); Sfx.hurt(); Haptic.play('hurt'); Game.lastCombat = Game.time;
     if (Settings.camShake) Game.shake = Math.max(Game.shake, 0.15);
     t.using = null;
   }
@@ -393,7 +393,7 @@ function knockDown(t, att, wtype) {
   if (t.kart) { t.kart.driver = null; t.kart = null; }
   HUD.feed(`<b class="${att && att.isPlayer ? 'me' : ''}">${att ? att.name : '?'}</b> ⤓ <b class="${t.isPlayer ? 'me' : t.team === Game.playerTeam ? 'ally' : ''}">${t.name}</b> <i>à terre</i>`);
   if (att && att.isPlayer) { HUD.killBanner(t.name + ' à terre', att.kills); Sfx.kill(); }
-  if (t.isPlayer) { HUD.message('Tu es <b>à terre</b> ! Rampe à couvert, ton coéquipier peut te réanimer', 3, 'bad'); vibrate(200); }
+  if (t.isPlayer) { HUD.message('Tu es <b>à terre</b> ! Rampe à couvert, ton coéquipier peut te réanimer', 3, 'bad'); Haptic.play('knock'); }
   else if (t.team === Game.playerTeam) HUD.message('Ton coéquipier est à terre ! Va le <b>réanimer</b>', 3, 'bad');
 }
 function revive(t) {
@@ -414,7 +414,7 @@ function eliminate(t, att, wtype, head) {
   if (att && att !== t) {
     att.kills++;
     txt = `<b class="${att.isPlayer ? 'me' : att.team === Game.playerTeam ? 'ally' : ''}">${att.name}</b> ${head ? '🎯' : '›'} <b class="${t.isPlayer ? 'me' : t.team === Game.playerTeam ? 'ally' : ''}">${t.name}</b> <i>${wn || ''}</i>`;
-    if (att.isPlayer) { Game.stat('kills', 1); if (wtype === 'sniper') Game.stat('sniperk', 1); if (wtype === 'shotgun') Game.stat('shotgunk', 1); HUD.killBanner(t.name, att.kills); Sfx.kill(); }
+    if (att.isPlayer) { Game.stat('kills', 1); if (wtype === 'sniper') Game.stat('sniperk', 1); if (wtype === 'shotgun') Game.stat('shotgunk', 1); HUD.killBanner(t.name, att.kills); Sfx.kill(); Haptic.play('kill'); Announcer.onPlayerKill(att.kills); Game.hitStop(); }
   } else if (wtype === 'storm') txt = `<b class="${t.isPlayer ? 'me' : ''}">${t.name}</b> a été emporté·e par la tempête`;
   else txt = `<b class="${t.isPlayer ? 'me' : ''}">${t.name}</b> est tombé·e`;
   HUD.feed(txt);

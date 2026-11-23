@@ -336,3 +336,20 @@ body.victory #hud > *:not(#centerMsg) { display: none !important; }
   .stats3 b { font-size: 18px; } #endXp { font-size: 12px; padding: 6px 10px; }
   #endScreen .row button { padding: 9px; }
 }
+
+/* ============ v3 sprint 1 : pings, annonceur ============ */
+.btns .ping { right: calc(190 * var(--u)); bottom: calc(14 * var(--u)); width: calc(44 * var(--u)); height: calc(44 * var(--u)); color: var(--sun); }
+body.lefthanded .btns .ping { left: calc(190 * var(--u)); }
+#pingLayer { position: absolute; inset: 0; }
+.pmark { position: absolute; left: 0; top: 0; display: none; flex-direction: column; align-items: center; gap: 1px; font-size: calc(11 * var(--u)); text-shadow: 0 1px 0 #000; }
+.pmark i { width: calc(22 * var(--u)); height: calc(22 * var(--u)); border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--sun); border: 2px solid #fff; box-shadow: 0 0 10px rgba(255,207,63,.8); }
+.pmark.enemy i { background: var(--danger); box-shadow: 0 0 12px rgba(255,60,60,.9); animation: pulse .6s infinite; }
+.pmark.loot i { background: var(--mint); }
+.pmark.mate b::before { content: '◆ '; color: var(--mint); }
+.pmark small { color: var(--mute); }
+#streak { position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%) scale(.5) rotate(-6deg); font-family: var(--display); font-size: calc(46 * var(--u)); color: #fff; text-shadow: 0 5px 0 var(--ink), 0 0 24px rgba(255,79,139,.8); opacity: 0; white-space: nowrap; pointer-events: none; }
+#streak.gold { color: var(--sun); } #streak.red { color: var(--pop); }
+#streak.show { animation: streakIn 2.3s forwards; }
+@keyframes streakIn { 0% { opacity: 0; transform: translate(-50%,-50%) scale(2.2) rotate(-6deg); } 12% { opacity: 1; transform: translate(-50%,-50%) scale(.95) rotate(-6deg); } 20% { transform: translate(-50%,-50%) scale(1.05) rotate(-6deg); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-60%) scale(1) rotate(-6deg); } }
+#killBanner { top: 15%; }
+#centerMsg { top: 25%; }

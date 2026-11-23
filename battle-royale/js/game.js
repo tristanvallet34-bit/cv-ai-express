@@ -127,10 +127,10 @@ const Game = {
     }
     // coéquipier en duo : saute avec le joueur
     this.camYaw = this.busMesh.rotation.y; this.camPitch = -0.25;
-    HUD.reset(); Input.resetAll(); document.body.classList.remove('victory', 'lowhp', 'knocked');
+    HUD.reset(); Pings.reset(); Announcer.reset(); this.lastCombat = -99; Music.stop(); Music.start('game'); Music.intensity = Music.target = 0.3;
+    Input.resetAll(); document.body.classList.remove('victory', 'lowhp', 'knocked');
     HUD.message('Le Bus Volant décolle ! Appuie sur <b>SAUTER</b> au-dessus de ta zone', 4);
     document.body.classList.add('ingame');
-    Sfx.stopMusic();
   },
   cleanup() {
     for (const f of this.fighters) { this.dynGroup.remove(f.mesh); }
@@ -323,7 +323,7 @@ const Game = {
     return -1;
   },
   noise(f, radius) {
-    if (dist2(f.pos.x, f.pos.z, this.player.pos.x, this.player.pos.z) < 140 * 140 && f !== this.player) { this.shotMarks.push({ x: f.pos.x, z: f.pos.z, t: this.time }); if (Settings.soundViz && f.team !== this.playerTeam && dist2(f.pos.x, f.pos.z, this.player.pos.x, this.player.pos.z) < 90 * 90) HUD.soundAt(f.pos, 'shot'); }
+    if (dist2(f.pos.x, f.pos.z, this.player.pos.x, this.player.pos.z) < 140 * 140 && f !== this.player) { this.shotMarks.push({ x: f.pos.x, z: f.pos.z, t: this.time }); if (dist2(f.pos.x, f.pos.z, this.player.pos.x, this.player.pos.z) < 60 * 60) this.lastCombat = this.time; if (Settings.soundViz && f.team !== this.playerTeam && dist2(f.pos.x, f.pos.z, this.player.pos.x, this.player.pos.z) < 90 * 90) HUD.soundAt(f.pos, 'shot'); }
     if (this.shotMarks.length > 30) this.shotMarks.shift();
     for (const b of this.bots) {
       if (!b.alive || b === f || b.team === f.team || b.ai.target) continue;
@@ -366,7 +366,19 @@ const Game = {
     else if (teams <= 1 && !this.ended && !this.placement) { this.placement = 2; setTimeout(() => this.endMatch(false), 1200); }
     if (!t.isPlayer && t.team === this.playerTeam && this.player.alive) HUD.message('Ton coéquipier a été éliminé !', 2.5, 'bad');
     const left = this.aliveCount();
-    if (this.player.alive && [25, 10, 5, 3, 2].includes(left)) HUD.message(`<b>${left}</b> joueurs restants`, 2);
+    if (this.player.alive && [25, 10, 5, 3, 2].includes(left)) { HUD.message(`<b>${left}</b> joueurs restants`, 2); Announcer.onAlive(left); }
+  },
+  hitStop() { if (this.slowT <= 0) { this.slowT = 0.07; this.timeScale = 0.06; } },
+  onPing(type, pos, ref) {
+    for (const b of this.bots) if (b.alive && b.team === this.playerTeam && b.ai) b.ai.ping = { type, pos: pos.clone(), ref, t: this.time };
+  },
+  updateMusic() {
+    const p = this.player, st = this.storm, alive = this.aliveCount();
+    let I = this.phase === 'bus' ? 0.15 : 0.3;
+    if (st.shrinking) I += 0.15; if (st.phase >= 4) I += 0.2; if (alive <= 10) I += 0.15;
+    if (this.time - (this.lastCombat || -99) < 6) I += 0.45;
+    if (!p.alive) I = 0.2;
+    Music.target = clamp(I, 0, 1);
   },
   startVictory() {
     this.slowT = 1.6; this.timeScale = 0.25; this.victoryT = 0.001; document.body.classList.add('victory');
@@ -441,6 +453,7 @@ const Game = {
     this.updateRockets(dt);
     this.updatePads(dt);
     this.updateKnocked(dt);
+    this.updateMusic();
     this.updateSupplies(dt);
     this.updateLootVis(dt);
     Effects.update(dt);
@@ -569,6 +582,7 @@ const Game = {
     }
     if (I.consume('reload')) startReload(p);
     if (I.consume('emote')) { p.emoteT = 3; }
+    if (I.consume('ping')) Pings.playerPing();
     if (I.consume('heal')) { const i = this.bestHealSlot(p); if (i >= 0) { p.cur = i; p.switchT = 0.1; p.reloadT = 0; this.useItem(p); } else HUD.message('Aucun soin utile', 1.2); }
     for (let i = 0; i < 5; i++) if (I.consume('slot' + i)) this.selectSlot(i);
     // tir / utilisation
@@ -749,7 +763,7 @@ const Game = {
       if (!gl && f.vy < 0 && f.pos.y - gy < (f.padT > 0 ? 9 : 38)) this.deployGlider(f);
       if (f.pos.y <= gy && f.vy <= 0) {
         f.pos.y = gy; f.state = 'ground'; f.parts.glider.visible = false; f.vy = 0; f.onGround = true;
-        if (f.isPlayer) { this.landedAt = World.nearPoi(f.pos.x, f.pos.z, 0); this.matchStart = this.matchStart || this.time; if (this.landedAt) HUD.message(this.landedAt.n.toUpperCase(), 2.5, 'poi'); }
+        if (f.isPlayer) { Haptic.play('land'); this.landedAt = World.nearPoi(f.pos.x, f.pos.z, 0); this.matchStart = this.matchStart || this.time; if (this.landedAt) HUD.message(this.landedAt.n.toUpperCase(), 2.5, 'poi'); }
         if (f.ai) { f.ai.thinkT = 0; }
       }
       this.animate(f, dt); return;
@@ -818,6 +832,8 @@ const Game = {
     P.sh.visible = QUALITY[this.quality].blob && d2 < 50 * 50;
     if (P.sh.visible) { P.sh.position.y = World.ground(f.pos.x, f.pos.z, f.pos.y) - f.pos.y + 0.05; }
     f.refreshGun();
+    // recul et rechargement visibles sur l'arme
+    const g = P.gun; if (g.visible) { const base = f.weapon ? -0.5 : -0.6; g.position.z = base + f.kick * 0.14; g.rotation.x = f.reloadT > 0 ? -0.5 : f.kick * 0.25; g.rotation.z = f.reloadT > 0 ? Math.sin(this.time * 9) * 0.35 : 0; }
   },
   // ---------- caméra & rendu ----------
   updateCamera(dt) {

@@ -146,6 +146,7 @@ const HUD = {
     $('exitKart').hidden = !p.kart;
     this.mmT -= dt; if (this.mmT <= 0) { this.mmT = 0.08; this.drawMini(); this.drawCompass(); if (this.bigOpen) this.drawBig(); }
     $('fps').hidden = !Settings.showFps;
+    Pings.update();
   },
   w2m(x, z, cx, cz, scale, S) { return [S / 2 + (x - cx) * scale, S / 2 + (z - cz) * scale]; },
   drawMini() {
