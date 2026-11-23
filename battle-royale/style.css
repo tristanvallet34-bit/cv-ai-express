@@ -361,3 +361,18 @@ body.lefthanded .btns .ping { left: calc(190 * var(--u)); }
 body.lefthanded .btns .gag { left: calc(186 * var(--u)); }
 body:not(.touch) .btns .gag { display: grid !important; right: auto; left: calc(50% + 180px); bottom: 14px; position: fixed; }
 #streak { top: 40%; }
+/* ============ v3 sprint 3 : pièces, boutique, boss ============ */
+.chip.coin i { width: calc(12 * var(--u)); height: calc(12 * var(--u)); border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6b0, #ffcf3f 55%, #c9921a); display: inline-block; }
+.chip.key { background: rgba(255,207,63,.85); color: var(--ink); }
+#bossBar { position: absolute; left: 50%; top: calc(44 * var(--u)); transform: translateX(-50%); width: calc(280 * var(--u)); text-align: center; font-family: var(--display); font-size: calc(15 * var(--u)); text-shadow: 0 2px 0 var(--ink); }
+#bossBar div { height: calc(10 * var(--u)); border-radius: 6px; background: rgba(0,0,0,.5); overflow: hidden; border: 2px solid #fff; margin-top: 2px; }
+#bossBar i { display: block; height: 100%; background: linear-gradient(90deg, #ff5cf0, #ffcf3f); transition: width .2s; }
+#shop { position: absolute; right: max(16px, env(safe-area-inset-right)); top: 50%; transform: translateY(-50%); width: min(330px, 46vw); background: var(--panel); border-radius: 18px; padding: 12px; pointer-events: auto; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 0 0 3px var(--sun); z-index: 6; }
+#shop .sh { display: flex; justify-content: space-between; align-items: center; }
+#shop h3 { margin: 0; font-family: var(--display); font-weight: 400; color: var(--sun); font-size: 18px; }
+#shop .cw { display: flex; gap: 4px; align-items: center; } #shop .cw i { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6b0, #ffcf3f 55%, #c9921a); }
+#shop .list { display: flex; flex-direction: column; gap: 5px; }
+#shop .list button { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.08); font-size: 13px; text-align: left; }
+#shop .list button b { color: var(--sun); white-space: nowrap; } #shop .list button small { display: block; font-size: 10px; }
+#shop .list button:disabled { opacity: .45; }
+#shop p { margin: 0; font-size: 11px; color: var(--mute); font-weight: 600; }

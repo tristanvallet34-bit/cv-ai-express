@@ -74,6 +74,13 @@ class BotAI {
   }
   think() {
     const f = this.f, G = Game, L = G.botLevel;
+    if (this.guard) { // boss : garde son château
+      this.target = null; let bd = 40 * 40;
+      for (const o of G.fighters) { if (!o.alive || o === f || o.state === 'bus') continue; const d = dist2(f.pos.x, f.pos.z, o.pos.x, o.pos.z); if (d < bd && World.los(_v1.set(f.pos.x, f.pos.y + 2.5, f.pos.z), _v2.set(o.pos.x, o.eyeY, o.pos.z))) { bd = d; this.target = o; } }
+      if (this.target) { if (this.spotT <= 0) this.spotT = 0.5; this.goalKind = 'fight'; return; }
+      if (dist2(f.pos.x, f.pos.z, this.guard.x, this.guard.z) > 8 * 8) this.setGoal(this.guard.x, this.guard.z, 'guard', null); else { this.goalKind = 'idle'; this.path = []; }
+      return;
+    }
     // ---- détection des ennemis ----
     if (this.target && (!this.target.alive || dist2(f.pos.x, f.pos.z, this.target.pos.x, this.target.pos.z) > (L.sight * 1.6) ** 2)) { this.target = null; this.engageT = 0; }
     if (!this.target || Math.random() < 0.15) {
@@ -88,6 +95,7 @@ class BotAI {
         // buissons : cachés si accroupis dedans et loin
         if (o.crouch && d > 12 * 12 && G.inBush(o)) continue;
         if (o.boxT > 0 && o.moveAmt < 0.2 && d > 10 * 10) continue;
+        if (o.isBoss && d > 25 * 25) continue;
         if (!World.los(eye, _v2.set(o.pos.x, o.eyeY, o.pos.z))) continue;
         bd = d; best = o;
       }
@@ -123,6 +131,7 @@ class BotAI {
     if (this.target && stormUrgent && Math.random() < 0.5) { this.goalKind = 'fight'; return; }
     if (lowHp && f.hasHeal() && !this.target && !outCur && this.healCD <= 0) { this.goalKind = 'heal'; return; }
     if (stormUrgent) { this.setGoal(this.safe.x, this.safe.z, 'storm', null); return; }
+    if (f.hasKey && World.vault && !World.vault.open) { this.setGoal(World.vault.out.x, World.vault.out.z, 'vault', null); return; }
     if (this.investigate && G.time - this.investigate.t < 6 && Math.random() < L.aggr * this.personality.courage) {
       this.setGoal(this.investigate.x, this.investigate.z, 'investigate', null); this.investigate = null; return;
     }
@@ -211,6 +220,7 @@ class BotAI {
         this.goal = null; this.goalKind = null; this.goalRef = null; this.path = []; this.thinkT = 0.1;
       }
     }
+    if (this.goalKind === 'vault' && f.hasKey && World.vault && dist2(f.pos.x, f.pos.z, World.vault.out.x, World.vault.out.z) < 2.5 * 2.5) { Events.openVault(f); this.goalKind = null; this.path = []; }
     while (this.path.length) {
       const wp = this.path[0];
       const d = dist2(f.pos.x, f.pos.z, wp.x, wp.z);

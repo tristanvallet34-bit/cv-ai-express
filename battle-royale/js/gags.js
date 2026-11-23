@@ -84,7 +84,7 @@ const Gags = {
     if (boxed || P.box) need('box').visible = boxed;
     P.body.visible = P.legL.visible = P.legR.visible = P.arms.visible = !boxed;
     if (f.malletT > 0 || P.mallet) { const m = need('mallet', P.arms, new THREE.Vector3(0.2, 0, 0)); m.visible = f.malletT > 0; if (m.visible) m.rotation.x = 1.6 - (1 - f.malletT / 0.45) * 2.4; }
-    const flat = f.flatT > 0; f.mesh.scale.set(flat ? 1.25 : 1, flat ? 0.35 : 1, flat ? 1.25 : 1);
+    const flat = f.flatT > 0, S = f.scale || 1; f.mesh.scale.set((flat ? 1.25 : 1) * S, (flat ? 0.35 : 1) * S, (flat ? 1.25 : 1) * S);
   },
   ray(ox, oy, oz, dx, dy, dz, maxT) { // bulles : bloquent les balles qui traversent leur surface
     let best = maxT;
@@ -153,16 +153,18 @@ const Gags = {
       const d = this.drops[i]; d.t -= dt;
       d.warn.material.opacity = 0.4 + 0.4 * Math.abs(Math.sin(G.time * 10));
       if (d.t > 0) continue;
-      d.mesh.visible = true; d.fall -= dt; d.mesh.position.y = d.pos.y + Math.max(0, d.fall / 0.45) * 40; d.mesh.rotation.y += dt * 3;
+      d.mesh.visible = true; d.fall -= dt; if (d.g === 'meteor') Effects.trail(d.mesh.position); d.mesh.position.y = d.pos.y + Math.max(0, d.fall / 0.45) * 40; d.mesh.rotation.y += dt * 3;
       if (d.fall > 0) continue;
-      const R = d.g === 'piano' ? 3.5 : 4;
+      const R = d.g === 'piano' ? 3.5 : d.g === 'meteor' ? 5 : 4;
       Effects.boom(_v1.copy(d.pos).setY(d.pos.y + 0.5)); Sfx.boom(d.pos.distanceTo(G.camPos));
+      if (d.g === 'meteor') { const m = d.mesh; this.scene.remove(d.warn); this.scene.remove(m); G.damageCrates(d.pos, R, 200); if (G.camPos.distanceTo(d.pos) < 30 && Settings.camShake) G.shake = 0.5; for (const f of G.fighters) { if (!f.alive || f.state === 'bus') continue; const dd = Math.hypot(f.pos.x - d.pos.x, f.pos.z - d.pos.z); if (dd < R && Math.abs(f.pos.y - d.pos.y) < 4) applyDamage(f, Math.round(60 * (1 - dd / R * 0.5)), null, false, 'meteor', f.pos.clone().setY(f.pos.y + 2)); } this.drops.splice(i, 1); continue; }
       if (d.g === 'piano') [262, 311, 370, 415].forEach((f, k) => setTimeout(() => Sfx.tone(f, 0.6, 0.15, 'triangle'), k * 40));
       else Sfx.tone(2200, 0.6, 0.25, 'triangle', 0.98);
       for (const f of G.fighters) {
-        if (!f.alive || f.state === 'bus' || (f.team === d.owner.team && f !== d.owner)) continue;
+        if (!f.alive || f.state === 'bus' || (d.owner && f.team === d.owner.team && f !== d.owner)) continue;
         const dd = Math.hypot(f.pos.x - d.pos.x, f.pos.z - d.pos.z); if (dd > R || Math.abs(f.pos.y - d.pos.y) > 4) continue;
-        if (d.g === 'piano') applyDamage(f, Math.round(95 * (1 - dd / R * 0.5)), d.owner, false, 'piano', f.pos.clone().setY(f.pos.y + 2));
+        if (d.g === 'meteor') applyDamage(f, Math.round(60 * (1 - dd / R * 0.5)), null, false, 'meteor', f.pos.clone().setY(f.pos.y + 2));
+        else if (d.g === 'piano') applyDamage(f, Math.round(95 * (1 - dd / R * 0.5)), d.owner, false, 'piano', f.pos.clone().setY(f.pos.y + 2));
         else { f.sh = 0; applyDamage(f, 40, d.owner, false, 'anvil', f.pos.clone().setY(f.pos.y + 2)); f.stunT = 1.3; }
       }
       G.damageCrates(d.pos, R, 200);

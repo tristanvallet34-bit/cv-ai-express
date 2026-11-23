@@ -108,6 +108,25 @@ const Models = {
     b.addGeo(new THREE.CylinderGeometry(0.6, 0.6, 0.5, 10).rotateZ(Math.PI / 2), M4(2, -1.7, 3.5), '#2a2433');
     return new THREE.Mesh(b.build(), this.mat);
   },
+  hover() {
+    const b = new GeoBuilder();
+    b.addGeo(new THREE.CylinderGeometry(1.5, 1.7, 0.6, 14), M4(0, 0.3, 0, 0, 0, 0, 1, 1, 1.4), '#2a2433');
+    b.addGeo(new THREE.CylinderGeometry(1.35, 1.35, 0.4, 14), M4(0, 0.75, 0, 0, 0, 0, 1, 1, 1.4), '#2ee6c8');
+    b.box(0, 1.1, 0.6, 1.0, 0.5, 0.9, '#ffffff'); b.box(0, 1.5, 1.05, 1.0, 0.5, 0.12, '#2a2433');
+    b.addGeo(new THREE.TorusGeometry(0.7, 0.1, 6, 16), M4(0, 1.5, 1.9), '#ffcf3f'); b.box(0, 1.5, 1.9, 1.2, 0.12, 0.06, '#3a3645');
+    b.box(0, 1.25, -0.7, 0.06, 0.5, 0.06, '#3a3645'); b.addGeo(new THREE.TorusGeometry(0.25, 0.04, 5, 10), M4(0, 1.45, -0.6, -0.5, 0, 0), '#3a3645');
+    return new THREE.Mesh(b.build(), this.mat);
+  },
+  coins() {
+    if (this.cache.coins) return this.cache.coins; const b = new GeoBuilder();
+    for (let i = 0; i < 4; i++) b.addGeo(new THREE.CylinderGeometry(0.2, 0.2, 0.06, 12), M4((i % 2) * 0.12 - 0.06, i * 0.07, 0), i % 2 ? '#ffcf3f' : '#ffe14a');
+    return (this.cache.coins = b.build());
+  },
+  key() {
+    if (this.cache.key) return this.cache.key; const b = new GeoBuilder();
+    b.addGeo(new THREE.TorusGeometry(0.18, 0.06, 6, 12), M4(0, 0.25, 0), '#ffcf3f'); b.box(0, -0.1, 0, 0.07, 0.5, 0.07, '#ffcf3f'); b.box(0.08, -0.25, 0, 0.12, 0.06, 0.07, '#ffcf3f'); b.box(0.08, -0.12, 0, 0.1, 0.06, 0.07, '#ffcf3f');
+    return (this.cache.key = b.build());
+  },
   kart(color) {
     const b = new GeoBuilder();
     b.box(0, 0.55, 0, 1.9, 0.5, 3.2, color);
@@ -232,11 +251,11 @@ function traceShot(shooter, o, d, range, minT) {
     const dx = f.pos.x - o.x, dz = f.pos.z - o.z; if (dx * dx + dz * dz > (t + 2) * (t + 2)) continue;
     if (f.knocked) { const tk = raySphere(o, d, f.pos.x, f.pos.y + 0.35, f.pos.z, 0.55); if (tk > minT && tk < t) { t = tk; target = f; head = false; } continue; }
     const cr = f.crouch ? -0.4 : 0;
-    const k = f.kart ? 0.4 : 0;
-    let th = raySphere(o, d, f.pos.x, f.pos.y + 1.72 + cr + k, f.pos.z, 0.33);
+    const k = f.kart ? 0.4 : 0; const S = f.scale || 1;
+    let th = raySphere(o, d, f.pos.x, f.pos.y + (1.72 + cr) * S + k, f.pos.z, 0.33 * S);
     if (th > minT && th < t) { t = th; target = f; head = true; }
     for (const [yy, rr] of [[1.1, 0.46], [0.5, 0.4]]) {
-      const tb = raySphere(o, d, f.pos.x, f.pos.y + yy + cr * (yy > 1 ? 1 : 0.5) + k, f.pos.z, rr);
+      const tb = raySphere(o, d, f.pos.x, f.pos.y + (yy + cr * (yy > 1 ? 1 : 0.5)) * S + k, f.pos.z, rr * S);
       if (tb > minT && tb < t) { t = tb; target = f; head = false; }
     }
   }

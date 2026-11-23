@@ -35,6 +35,8 @@
       <span class="chip" title="Joueurs en vie"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8z"/></svg><b id="alive">50</b></span>
       <span class="chip" title="Éliminations"><svg viewBox="0 0 24 24"><path d="M12 2C7 2 4 5.6 4 10c0 2.6 1.2 4.6 3 5.8V20h3v-2h4v2h3v-4.2c1.8-1.2 3-3.2 3-5.8 0-4.4-3-8-8-8zm-3.5 11a2 2 0 110-4 2 2 0 010 4zm7 0a2 2 0 110-4 2 2 0 010 4z"/></svg><b id="kills">0</b></span>
       <span class="chip storm" id="stormTxt">⏱ 1:00</span>
+      <span class="chip coin" title="Pièces"><i></i><b id="coins">0</b></span>
+      <span class="chip key" id="keyChip" hidden>🔑 clé</span>
     </div>
   </div>
   <canvas id="compass" width="300" height="34"></canvas>
@@ -45,6 +47,8 @@
   </div>
 
   <div id="centerMsg"></div>
+  <div id="bossBar" hidden><span>Roi Pingouin</span><div><i></i></div></div>
+  <div id="shop" hidden><div class="sh"><h3>Boutique du marchand</h3><span class="cw"><i></i><b class="coins">0</b></span></div><div class="list"></div><p>Ramasse des pièces sur l'île, dans les coffres et sur les adversaires</p></div>
   <div id="killBanner"></div>
   <div id="progress" hidden><div class="pr"></div><span id="progTxt">Rechargement</span></div>
 
@@ -158,6 +162,7 @@
 <script src="js/bot.js"></script>
 <script src="js/effects.js"></script>
 <script src="js/gags.js"></script>
+<script src="js/events.js"></script>
 <script src="js/input.js"></script>
 <script src="js/hud.js"></script>
 <script src="js/feel.js"></script>

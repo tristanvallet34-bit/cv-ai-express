@@ -46,6 +46,7 @@ const Game = {
     this.dynGroup = new THREE.Group(); this.scene.add(this.dynGroup);
     Post.init(this.renderer);
     World.build(this.scene);
+    Events.init(this.scene);
     Look.applyTime('sunset');
     this.applyQuality();
     window.addEventListener('resize', () => this.resize()); this.resize();
@@ -110,6 +111,7 @@ const Game = {
     for (const s of World.lootSpots) if (Math.random() < 0.85) this.spawnFloorLoot(s.x, s.z);
     for (const s of World.chestSpots) if (Math.random() < 0.8) this.spawnChest(s.x, s.z);
     this.spawnKarts();
+    this.player.coins = 0; Events.reset();
     // tempête
     const st = this.storm; Object.assign(st, { cx: 0, cz: 0, r: 500, phase: 0, shrinking: false, timer: STORM_PHASES[0].wait * this.mode.storm });
     this.chooseNextCircle(); this.stormMesh.visible = true; this.supplyPhases = { 1: false, 3: false };
@@ -164,6 +166,8 @@ const Game = {
     if (it.kind === 'weapon') { geo = Models.weapon(it.w, it.rar); rar = it.rar; }
     else if (it.kind === 'gag') { geo = Gags.geo.gagItem; rar = GAGS[it.g].rar; }
     else if (it.kind === 'cons') geo = Models.consumable(it.c);
+    else if (it.kind === 'coins') geo = Models.coins();
+    else if (it.kind === 'key') { geo = Models.key(); rar = 4; }
     else geo = Models.ammo(it.a);
     const m = new THREE.Mesh(geo, Models.mat); m.position.y = 0.55; if (it.kind === 'weapon') m.scale.setScalar(1.5); g.add(m);
     const ring = new THREE.Mesh(this.ringGeo, this.ringMats[it.kind === 'weapon' ? rar : it.kind === 'cons' ? 2 : 0]); ring.position.y = 0.06; g.add(ring);
@@ -193,7 +197,7 @@ const Game = {
     if (c.isSupply) { c.mesh.visible = false; if (c.smoke) c.smoke.visible = false; }
     else c.mesh.geometry = Models.chest(true);
     const x = c.pos.x, z = c.pos.z;
-    const wd = this.rollWeapon(c.isSupply ? 4 : 1, c.isSupply ? 0 : 0.6);
+    const wd = this.rollWeapon(c.isSupply || c.gold ? 4 : 1, c.isSupply ? 0 : 0.6);
     if (c.isSupply && Math.random() < 0.5) Object.assign(wd, { w: 'minigun', rar: 4, mag: WEAPONS.minigun.mag });
     if (c.isSupply && Math.random() < 0.3) Object.assign(wd, { w: 'sniper', rar: 4, mag: WEAPONS.sniper.mag });
     const a = WEAPONS[wd.w].ammo;
@@ -208,12 +212,17 @@ const Game = {
     let i = 0; const drop = d => { const a = i++ * 1.3; this.makeLoot(d, t.pos.x + Math.cos(a) * (1 + i * 0.25), t.pos.z + Math.sin(a) * (1 + i * 0.25)); };
     for (const s of t.slots) if (s) drop(Object.assign({}, s, { kind: s.kind }));
     if (t.gag) { drop({ kind: 'gag', g: t.gag.g }); t.gag = null; }
+    if (t.coins > 0) { drop({ kind: 'coins', n: t.coins }); t.coins = 0; }
+    if (t.hasKey) { drop({ kind: 'key' }); t.hasKey = false; }
+    if (t.isBoss) Events.bossDrop(t);
     for (const a in t.ammo) if (t.ammo[a] > 0) drop({ kind: 'ammo', a, n: t.ammo[a] });
     t.slots = [null, null, null, null, null];
   },
   pickup(f, it, auto) {
     if (it.taken) return false;
     if (it.kind === 'ammo') { f.ammo[it.a] = Math.min(AMMO[it.a].max, f.ammo[it.a] + it.n); }
+    else if (it.kind === 'coins') { f.coins = (f.coins || 0) + it.n; if (f.isPlayer) Sfx.tone(1320, 0.08, 0.15, 'square'); }
+    else if (it.kind === 'key') { f.hasKey = true; if (f.isPlayer) { HUD.message('🔑 Tu as la <b>clé du coffre-fort</b> ! Il est au Centre-Ville', 3.5); Announcer.say('Clé trouvée !', 'gold'); } }
     else if (it.kind === 'cons') {
       const left = f.addCons(it.c, it.n);
       if (left === it.n) {
@@ -256,6 +265,12 @@ const Game = {
         const k = { pos: new THREE.Vector3(x, World.h(x, z), z), yaw: Math.random() * TAU, speed: 0, mesh: m, driver: null, hp: 300 };
         this.karts.push(k); i++; break;
       }
+    }
+    // aéroglisseurs au bord de la rivière
+    for (const [ia, t] of [[0, 0.6], [2, 0.5]]) {
+      const A = World.river[ia], B = World.river[ia + 1]; const x = lerp(A[0], B[0], t) + 12, z = lerp(A[1], B[1], t) + 12;
+      const m = Models.hover(); this.dynGroup.add(m);
+      this.karts.push({ pos: new THREE.Vector3(x, Math.max(World.h(x, z), 0.25), z), yaw: Math.random() * TAU, speed: 0, mesh: m, driver: null, hp: 300, hover: true });
     }
   },
   spawnSupply() {
@@ -369,8 +384,8 @@ const Game = {
   },
   inBush(f) { for (const b of World.bushes) if (dist2(f.pos.x, f.pos.z, b.x, b.z) < (b.s * 1.2) ** 2) return true; return false; },
   duoMateOf(f) { if (!f || this.mode.team < 2) return null; for (const o of this.fighters) if (o !== f && o.team === f.team) return o; return null; },
-  aliveCount() { let n = 0; for (const f of this.fighters) if (f.alive) n++; return n; },
-  aliveTeams() { const s = new Set(); for (const f of this.fighters) if (f.alive) s.add(f.team); return s.size; },
+  aliveCount() { let n = 0; for (const f of this.fighters) if (f.alive && !f.isBoss) n++; return n; },
+  aliveTeams() { const s = new Set(); for (const f of this.fighters) if (f.alive && !f.isBoss) s.add(f.team); return s.size; },
   stat(k, n) { this.matchStats[k] = (this.matchStats[k] || 0) + n; },
   deployGlider(f) { if (f.state === 'fall') { f.state = 'glide'; f.parts.glider.visible = true; } },
   jumpFromBus(f) {
@@ -488,6 +503,7 @@ const Game = {
     this.updateKarts(dt);
     this.updateGrenades(dt);
     Gags.update(dt);
+    Events.update(dt);
     this.updateRockets(dt);
     this.updatePads(dt);
     this.updateKnocked(dt);
@@ -550,7 +566,7 @@ const Game = {
         st.cx = lerp(st.sx, st.nx, t); st.cz = lerp(st.sz, st.nz, t); st.r = lerp(st.sr, st.nr, t);
         if (st.timer <= 0) {
           st.phase++; st.shrinking = false;
-          if (st.phase < STORM_PHASES.length) { st.timer = STORM_PHASES[st.phase].wait * this.mode.storm; this.chooseNextCircle(); if (this.player.alive) HUD.message('Nouvelle zone sûre repérée sur la carte', 2.5); }
+          if (st.phase < STORM_PHASES.length) { st.timer = STORM_PHASES[st.phase].wait * this.mode.storm; this.chooseNextCircle(); if (st.phase === Events.goldPhase) Events.goldStorm(); else if (this.player.alive) HUD.message('Nouvelle zone sûre repérée sur la carte', 2.5); }
         }
       }
     }
@@ -564,7 +580,7 @@ const Game = {
     for (const f of this.fighters) {
       if (!f.alive || f.state === 'bus') { f.inStorm = false; continue; }
       f.inStorm = dist2(f.pos.x, f.pos.z, st.cx, st.cz) > st.r * st.r;
-      if (f.inStorm && tick && f.state === 'ground') { applyDamage(f, st.dps, null, false, 'storm', null); if (f.isPlayer) Sfx.storm(); }
+      if (f.inStorm && tick && f.state === 'ground') { applyDamage(f, st.dps * (st.goldMul || 1), null, false, 'storm', null); if (f.isPlayer) Sfx.storm(); }
     }
   },
   // ---------- joueur ----------
@@ -674,7 +690,7 @@ const Game = {
     for (const it of this.loot) {
       if (it.taken) continue; const d = dist2(p.pos.x, p.pos.z, it.pos.x, it.pos.z); if (d > 9 || Math.abs(it.pos.y - p.pos.y) > 2.5) continue;
       if (d < 1.8 * 1.8) {
-        if (it.kind === 'ammo') { this.pickup(p, it, true); continue; }
+        if (it.kind === 'ammo' || it.kind === 'coins' || it.kind === 'key') { this.pickup(p, it, true); continue; }
         if (Settings.autoPickup && it.kind === 'cons' && !it.dropped && this.pickup(p, it, true)) continue;
         if (Settings.autoPickup && it.kind === 'weapon' && p.freeSlot() >= 0 && !it.dropped) { if (this.pickup(p, it, true)) continue; }
       }
@@ -682,6 +698,8 @@ const Game = {
     }
     const containers = this.chests.concat(this.supplies.filter(s => s.landed));
     for (const c of containers) { if (c.open) continue; const d = dist2(p.pos.x, p.pos.z, c.pos.x, c.pos.z); if (d < bd + 1) { bd = d; best = c; label = c.isSupply ? '<small>maintenir</small>Ouvrir le ravitaillement' : '<small>maintenir</small>Ouvrir le coffre'; } }
+    for (const m of Events.merchants) { const d = dist2(p.pos.x, p.pos.z, m.pos.x, m.pos.z); if (d < 4.5 * 4.5 && d < bd + 6) { bd = d; best = { isShop: true, m }; label = `<small>${p.coins || 0} pièces</small>Marchand : boutique`; } }
+    const V = World.vault; if (V && !V.open) { const d = dist2(p.pos.x, p.pos.z, V.out.x, V.out.z); if (d < 3.5 * 3.5) { bd = d; best = { isVault: true }; label = p.hasKey ? '<small>clé</small>Ouvrir le coffre-fort' : '<small>verrouillé</small>Il faut la clé du coffre-fort'; } }
     for (const k of this.karts) { if (k.driver) continue; const d = dist2(p.pos.x, p.pos.z, k.pos.x, k.pos.z); if (d < bd + 4) { bd = d; best = k; label = '<small>véhicule</small>Conduire le kart'; } }
     const mate = this.duoMateOf(p);
     if (p.knocked) best = null;
@@ -699,7 +717,9 @@ const Game = {
     } else {
       this.chestHold = 0;
       if (I.consume('interact') && best) {
-        if (best.mesh && best.driver !== undefined) this.enterKart(p, best);
+        if (best.isShop) { if (Events.shopOpen) Events.closeShop(); else Events.openShop(best.m); }
+        else if (best.isVault) { if (p.hasKey) Events.openVault(p); else Sfx.tone(200, 0.2, 0.2, 'square'); }
+        else if (best.mesh && best.driver !== undefined) this.enterKart(p, best);
         else { best.dropped = false; this.pickup(p, best, false); }
       }
     }
@@ -734,15 +754,17 @@ const Game = {
       World.collide(tmp, 1.3, 1.4);
       if (Math.abs(tmp.x - bx) + Math.abs(tmp.z - bz) > 0.01) { k.speed *= 0.5; if (Math.abs(k.speed) > 10 && k.driver && k.driver.isPlayer) { Sfx.noise(0.2, 400, 0.3); if (Settings.camShake) this.shake = 0.3; } }
       k.pos.x = tmp.x; k.pos.z = tmp.z;
-      if (World.h(k.pos.x, k.pos.z) < -0.6) { k.pos.x = ox; k.pos.z = oz; k.speed = 0; }
-      const gy = World.h(k.pos.x, k.pos.z); k.pos.y = gy;
+      if (!k.hover && World.h(k.pos.x, k.pos.z) < -0.6) { k.pos.x = ox; k.pos.z = oz; k.speed = 0; }
+      if (k.hover && World.h(k.pos.x, k.pos.z) < -6) { k.pos.x = ox; k.pos.z = oz; k.speed = 0; }
+      const gy = k.hover ? Math.max(World.h(k.pos.x, k.pos.z), 0.25) + 0.35 + Math.sin(this.time * 3 + k.pos.x) * 0.06 : World.h(k.pos.x, k.pos.z); k.pos.y = gy;
       if (k.driver && k.driver.isPlayer) this.stat('drive', Math.hypot(k.pos.x - ox, k.pos.z - oz));
       // écraser les adversaires
       if (k.driver && Math.abs(k.speed) > 11) for (const f of this.fighters) {
         if (!f.alive || f === k.driver || f.kart || f.team === k.driver.team || f.state !== 'ground') continue;
         if (dist2(f.pos.x, f.pos.z, k.pos.x, k.pos.z) < 2.2 * 2.2) { applyDamage(f, 35, k.driver, false, 'kart', f.pos.clone().setY(f.pos.y + 1)); f.vel.set(-Math.sin(k.yaw) * 14, 0, -Math.cos(k.yaw) * 14); f.vy = 6; f.onGround = false; k.speed *= 0.6; }
       }
-      const fy = World.h(k.pos.x - Math.sin(k.yaw) * 1.4, k.pos.z - Math.cos(k.yaw) * 1.4), by = World.h(k.pos.x + Math.sin(k.yaw) * 1.4, k.pos.z + Math.cos(k.yaw) * 1.4);
+      let fy = World.h(k.pos.x - Math.sin(k.yaw) * 1.4, k.pos.z - Math.cos(k.yaw) * 1.4), by = World.h(k.pos.x + Math.sin(k.yaw) * 1.4, k.pos.z + Math.cos(k.yaw) * 1.4);
+      if (k.hover) { fy = Math.max(fy, 0.25); by = Math.max(by, 0.25); }
       k.mesh.position.copy(k.pos); k.mesh.rotation.set(Math.atan2(fy - by, 2.8), k.yaw, 0, 'YXZ');
       if (k.driver) { k.driver.pos.set(k.pos.x, k.pos.y + 0.25, k.pos.z); k.driver.vel.set(0, 0, 0); }
       k.mesh.visible = dist2(k.pos.x, k.pos.z, this.camPos.x, this.camPos.z) < this.scene.fog.far ** 2;

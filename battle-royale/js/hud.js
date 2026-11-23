@@ -74,7 +74,7 @@ const HUD = {
     // barres
     $('hpFill').style.width = Math.max(0, v.hp) + '%'; $('hpTxt').textContent = Math.ceil(Math.max(0, v.hp));
     $('shFill').style.width = v.sh + '%'; $('shTxt').textContent = Math.ceil(v.sh);
-    $('alive').textContent = G.aliveCount(); $('kills').textContent = p.kills;
+    $('alive').textContent = G.aliveCount(); $('kills').textContent = p.kills; $('coins').textContent = p.coins || 0; $('keyChip').hidden = !p.hasKey;
     // tempête
     const st = G.storm; const t = Math.max(0, Math.ceil(st.timer));
     $('stormTxt').textContent = (st.phase >= STORM_PHASES.length ? 'FIN' : (st.shrinking ? '▼ ' : '⏱ ') + Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'));
@@ -199,6 +199,11 @@ const HUD = {
     for (const p of World.pois) { const [x, y] = this.w2m(p.x, p.z, 0, 0, sc, S); ctx.lineWidth = 4; ctx.strokeStyle = '#2b1e5c'; ctx.strokeText(p.n.toUpperCase(), x, y); ctx.fillStyle = '#fff'; ctx.fillText(p.n.toUpperCase(), x, y); }
     if (G.bus && G.bus.active) { const [a, b] = this.w2m(G.bus.sx, G.bus.sz, 0, 0, sc, S), [c, d] = this.w2m(G.bus.ex, G.bus.ez, 0, 0, sc, S); ctx.strokeStyle = '#fff'; ctx.setLineDash([8, 8]); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(a, b); ctx.lineTo(c, d); ctx.stroke(); ctx.setLineDash([]); }
     for (const s of G.supplies) if (!s.open) { const [x, y] = this.w2m(s.pos.x, s.pos.z, 0, 0, sc, S); ctx.fillStyle = '#3e6bd6'; ctx.fillRect(x - 6, y - 6, 12, 12); }
+    ctx.font = 'bold 13px Nunito, sans-serif';
+    const icon = (x, z, txt, bg) => { const [a, b] = this.w2m(x, z, 0, 0, sc, S); ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(a, b, 10, 0, TAU); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#fff'; ctx.fillText(txt, a, b + 5); };
+    for (const m of Events.merchants) icon(m.pos.x, m.pos.z, '¤', '#ff8a3d');
+    if (World.vault && !World.vault.open) icon(World.vault.cx, World.vault.cz, 'V', '#5a6378');
+    if (Events.boss && Events.boss.alive) icon(Events.boss.pos.x, Events.boss.pos.z, '♛', '#1a1a2e');
     const p = G.spectating || G.player; const [px, py] = this.w2m(p.pos.x, p.pos.z, 0, 0, sc, S);
     ctx.save(); ctx.translate(px, py); ctx.rotate(-G.camYaw); ctx.fillStyle = '#ffcf3f'; ctx.strokeStyle = '#2b1e5c'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(8, 9); ctx.lineTo(0, 4); ctx.lineTo(-8, 9); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
     if (this.marker) { const [x, y] = this.w2m(this.marker.x, this.marker.z, 0, 0, sc, S); ctx.fillStyle = '#ffcf3f'; ctx.strokeStyle = '#2b1e5c'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 8, y - 16); ctx.lineTo(x + 8, y - 16); ctx.closePath(); ctx.fill(); ctx.stroke(); }

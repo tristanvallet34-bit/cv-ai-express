@@ -14,7 +14,17 @@ const World = {
     { n: 'Château Fou', x: 290, z: 25, r: 44, type: 'castle', count: 1 },
     { n: 'Camp des Pins', x: -125, z: 110, r: 36, type: 'cabin', count: 4 },
     { n: 'Plage Coco', x: 60, z: 330, r: 36, type: 'town', count: 4 },
+    { n: 'Dunes Sucrées', x: 100, z: 160, r: 40, type: 'town', count: 5, candy: true },
+    { n: 'Marais Grenouille', x: -185, z: -165, r: 34, type: 'cabin', count: 4, swamp: true },
   ],
+  river: [[205, -175], [250, -110], [300, -70], [360, -55], [460, -40]],
+  CANDY: { x: 190, z: 150, r: 150 }, SWAMP: { x: -185, z: -165, r: 95 },
+  biome(x, z) {
+    const c = 1 - smoothstep(this.CANDY.r * 0.6, this.CANDY.r, Math.hypot(x - this.CANDY.x, z - this.CANDY.z));
+    const s = 1 - smoothstep(this.SWAMP.r * 0.55, this.SWAMP.r, Math.hypot(x - this.SWAMP.x, z - this.SWAMP.z));
+    return { candy: c, swamp: s };
+  },
+  riverDist(x, z) { let d = 1e9; const R = this.river; for (let i = 0; i < R.length - 1; i++) d = Math.min(d, segDist(x, z, R[i][0], R[i][1], R[i + 1][0], R[i + 1][1])); return d; },
   walls: [], circles: [], buildings: [], grid: new Map(), crates: [],
   lootSpots: [], chestSpots: [], kartSpots: [],
   built: false,
@@ -25,6 +35,9 @@ const World = {
     h += 44 * Math.exp(-((x - 232) ** 2 + (z + 238) ** 2) / (2 * 62 * 62));
     h += 20 * Math.exp(-((x + 270) ** 2 + (z - 40) ** 2) / (2 * 55 * 55));
     h += 12 * Math.exp(-((x - 110) ** 2 + (z + 60) ** 2) / (2 * 45 * 45));
+    const B = this.biome(x, z);
+    if (B.candy > 0) h = lerp(h, 6.5 + Math.sin(x * 0.045 + z * 0.02) * 2.2 + Math.sin(z * 0.06) * 1.2, B.candy * 0.85);
+    if (B.swamp > 0) h = lerp(h, 0.9 + (vnoise(x * 0.045 + 9, z * 0.045 + 2) - 0.5) * 3.4, B.swamp);
     const e = smoothstep(this.ISL - 95, this.ISL + 15, r + (vnoise(x * 0.012, z * 0.012) - 0.5) * 70);
     return h * (1 - e) - 9 * e;
   },
@@ -36,6 +49,7 @@ const World = {
       const w = 1 - smoothstep(p.r, R, Math.sqrt(d2));
       h = lerp(h, p.h, w);
     }
+    if (x > 150 && z < 20 && z > -240) { const rd = this.riverDist(x, z); if (rd < 15) h = lerp(h, Math.min(h, -1.25), 1 - smoothstep(5, 15, rd)); }
     return h;
   },
   // hauteur du sol (terrain, planchers, caisses)
@@ -188,6 +202,12 @@ const World = {
       else this.addCoverCluster(x, z, R);
     }
     this.buildPads(R);
+    this.buildBridges();
+    this.merchantSpots = [];
+    for (const name of ['Port Bonbon', 'Village Cactus', 'Ferme Pâquerette', 'Dunes Sucrées']) {
+      const p = this.pois.find(q => q.n === name);
+      for (let t = 0; t < 40; t++) { const a = R() * TAU, d = p.r * (0.3 + R() * 0.5); const x = p.x + Math.cos(a) * d, z = p.z + Math.sin(a) * d; if (this.inBuilding(x, z) || this.nearWall(x, z, 3)) continue; this.merchantSpots.push({ x, z, poi: p.n }); break; }
+    }
     this.buildCrates(scene);
     const bm = new THREE.Mesh(gb.build(), Look.mat({ vertexColors: true }));
     bm.castShadow = true; bm.receiveShadow = true; scene.add(bm); this.bldMesh = bm;
@@ -213,6 +233,22 @@ const World = {
       if (this.h(x, z) < 2) continue; this.chestSpots.push({ x, z, out: true });
     }
     this.buildMinimap();
+  },
+  // ponts au-dessus de la rivière
+  buildBridges() {
+    for (const [ia, t] of [[1, 0.5], [3, 0.4]]) {
+      const A = this.river[ia], Bp = this.river[ia + 1]; const x = lerp(A[0], Bp[0], t), z = lerp(A[1], Bp[1], t);
+      const alongX = Math.abs(Bp[0] - A[0]) > Math.abs(Bp[1] - A[1]); // la rivière coule selon X → pont selon Z
+      const L = 34, W = 4.5; let top = 0;
+      for (const s of [-1, 1]) top = Math.max(top, this.rawH(alongX ? x : x + s * L / 2, alongX ? z + s * L / 2 : z));
+      top = Math.max(top, 1.6) + 0.3;
+      const sx = alongX ? W : L, sz = alongX ? L : W;
+      this.gb.box(x, top - 0.25, z, sx, 0.5, sz, '#a8743f');
+      for (let k = -L / 2; k <= L / 2; k += 2) this.gb.box(alongX ? x : x + k, top + 0.01, alongX ? z + k : z, alongX ? W : 0.12, 0.03, alongX ? 0.12 : W, '#8a5a30');
+      for (const s of [-1, 1]) { this.gb.box(alongX ? x + s * W / 2 : x, top + 0.5, alongX ? z : z + s * W / 2, alongX ? 0.15 : L, 0.15, alongX ? L : 0.15, '#8a5a30'); this.addWall(alongX ? x + s * W / 2 - 0.1 : x - L / 2, alongX ? x + s * W / 2 + 0.1 : x + L / 2, alongX ? z - L / 2 : z + s * W / 2 - 0.1, alongX ? z + L / 2 : z + s * W / 2 + 0.1, top, top + 1); }
+      for (let k = -L / 2 + 6; k < L / 2 - 4; k += 9) this.gb.box(alongX ? x : x + k, top - 3, alongX ? z + k : z, 0.6, 5.5, 0.6, '#6b4a2a');
+      this.addWall(x - sx / 2, x + sx / 2, z - sz / 2, z + sz / 2, top - 0.5, top);
+    }
   },
   // caisses destructibles (instanciées)
   buildCrates(scene) {
@@ -260,7 +296,9 @@ const World = {
       this.roads.push([this.pois[1].x, this.pois[1].z, this.pois[8].x, this.pois[8].z]);
       this.roads.push([this.pois[2].x, this.pois[2].z, this.pois[3].x, this.pois[3].z]);
     }
-    const n = vnoise(x * 0.05, z * 0.05);
+    const n = vnoise(x * 0.05, z * 0.05); const B = this.biome(x, z);
+    if (B.candy > 0.05 && h > 1.2) { c.set(n > 0.5 ? '#e9a3bf' : '#e6c08a'); if (B.candy < 1) c.lerp(new THREE.Color('#7fd35a'), 1 - B.candy); return c; }
+    if (B.swamp > 0.05 && h > 0.5) { c.set(n > 0.55 ? '#5d7f3a' : '#6e6a3c'); if (B.swamp < 1) c.lerp(new THREE.Color('#69c44e'), 1 - B.swamp); return c; }
     if (h < 1.0) c.set('#f2d98a');
     else if (h < 2.4) c.set('#f2d98a').lerp(new THREE.Color('#86d65a'), (h - 1) / 1.4);
     else if (h > 36) c.set('#f6f9ff');
@@ -293,6 +331,7 @@ const World = {
     };
     const faceCenter = (x, z) => { const dx = p.x - x, dz = p.z - z; return Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? 2 : 3) : (dz > 0 ? 0 : 1); };
     if (p.type === 'town' || p.type === 'cabin') {
+      if (p.n === 'Centre-Ville') { const pos = tryPlace(15, 13, 80); if (pos) this.addHouse(pos.x, pos.z, 15, 13, 7.4, faceCenter(pos.x, pos.z), R, { two: true, vault: true }); }
       if (p.type === 'town' && p.count >= 7) { // place centrale : fontaine
         placed.push({ x: p.x, z: p.z, w: 8, d: 8 });
         this.gb.addGeo(new THREE.CylinderGeometry(3.2, 3.6, 1, 10), M4(p.x, p.h + 0.4, p.z), '#cfd8e3');
@@ -305,7 +344,7 @@ const World = {
         const big = p.type === 'town' && R() < 0.3;
         const w = big ? 14 + R() * 4 : 9 + R() * 4, d = big ? 11 + R() * 3 : 8 + R() * 3;
         const pos = tryPlace(w, d); if (!pos) continue;
-        this.addHouse(pos.x, pos.z, w, d, big ? 7.4 : 4.4, faceCenter(pos.x, pos.z), R, { two: big, snow: p.h > 30 });
+        this.addHouse(pos.x, pos.z, w, d, big ? 7.4 : 4.4, faceCenter(pos.x, pos.z), R, { two: big, snow: p.h > 30, candy: p.candy, swamp: p.swamp });
       }
     } else if (p.type === 'factory') {
       for (let i = 0; i < p.count; i++) {
@@ -337,8 +376,11 @@ const World = {
     let base = -99;
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]]) base = Math.max(base, this.h(cx + sx * hw, cz + sz * hd));
     base += 0.15;
-    const WALLC = o.factory ? pick(['#c9cfd6', '#b7c4cf', '#d6c7b0']) : o.barn ? '#d8343f' : pick(['#ffe8b0', '#ffd1dc', '#c9f2ff', '#d8ffc9', '#fff3e0', '#e8d9ff', '#ffd9b3']);
-    const ROOFC = o.factory ? '#7d8791' : o.barn ? '#f2f2f2' : o.snow ? '#ffffff' : pick(['#e8344d', '#3e6bd6', '#2ea36b', '#ff8a3d', '#7b4fd6', '#d94f8a']);
+    let WALLC = o.factory ? pick(['#c9cfd6', '#b7c4cf', '#d6c7b0']) : o.barn ? '#d8343f' : pick(['#ffe8b0', '#ffd1dc', '#c9f2ff', '#d8ffc9', '#fff3e0', '#e8d9ff', '#ffd9b3']);
+    let ROOFC = o.factory ? '#7d8791' : o.barn ? '#f2f2f2' : o.snow ? '#ffffff' : pick(['#e8344d', '#3e6bd6', '#2ea36b', '#ff8a3d', '#7b4fd6', '#d94f8a']);
+    if (o.candy) { WALLC = pick(['#ffd6e8', '#fff0c2', '#d6f5ff', '#e9d6ff']); ROOFC = pick(['#ff6fa8', '#7ad1ff', '#ffb347', '#b58cff']); }
+    if (o.swamp) { WALLC = pick(['#8a6b4a', '#7a5e40', '#9b7a52']); ROOFC = pick(['#4f6b3a', '#3e5a30']); }
+    if (o.vault) { WALLC = '#a4adc0'; ROOFC = '#5a6378'; }
     const T = 0.45, DG = o.factory || o.barn ? 2.4 : 1.35, DH = o.factory || o.barn ? 4.2 : 3.1;
     const y0 = base - 4, y1 = base + h;
     // fondation
@@ -371,6 +413,10 @@ const World = {
         const outP = ax === 'x' ? { x: m, z: f + sign * 2.2 } : { x: f + sign * 2.2, z: m };
         const inP = ax === 'x' ? { x: m, z: f - sign * 2.2 } : { x: f - sign * 2.2, z: m };
         if (!doorOut) { doorOut = outP; doorIn = inP; }
+        if (o.vault && !this.vault) { // porte blindée (mur amovible)
+          const dw = ax === 'x' ? this.addWall(m - DG, m + DG, f - T, f + T, base - 1, base + DH) : this.addWall(f - T, f + T, m - DG, m + DG, base - 1, base + DH);
+          this.vault = { wall: dw, out: outP, inP, cx, cz, base, ax, f, m, w: DG * 2, h: DH, bld: null, open: false };
+        }
         // porte ouverte (décor) + paillasson
         if (ax === 'x') gb.box(m, base + 0.05, f + sign * 1.0, DG * 1.6, 0.05, 1.2, '#8a5a3c'); else gb.box(f + sign * 1.0, base + 0.05, m, 1.2, 0.05, DG * 1.6, '#8a5a3c');
       } else {
@@ -415,13 +461,14 @@ const World = {
       // plafond plat sous le toit (cache l'intérieur du toit)
       rb.box(cx, Y + 0.05, cz, w, 0.1, d, '#f5efe6');
     }
-    const bld = { x0: cx - hw, x1: cx + hw, z0: cz - hd, z1: cz + hd, floor: base, top: y1, doorOut, doorIn, cx, cz };
+    const bld = { x0: cx - hw, x1: cx + hw, z0: cz - hd, z1: cz + hd, floor: base, top: y1, doorOut, doorIn, cx, cz, vault: !!o.vault };
+    if (o.vault && this.vault) this.vault.bld = bld;
     this.buildings.push(bld); this._insert(bld, bld.x0, bld.x1, bld.z0, bld.z1, 'blds');
     // mobilier / couverture intérieure
     const area = (w - 2) * (d - 2);
-    const nLoot = Math.max(1, Math.round(area / 40));
+    const nLoot = o.vault ? 0 : Math.max(1, Math.round(area / 40));
     for (let k = 0; k < nLoot; k++) this.lootSpots.push({ x: cx + (R() - 0.5) * (w - 2.5), z: cz + (R() - 0.5) * (d - 2.5), bld });
-    if (R() < (o.small ? 0.35 : 0.55)) this.chestSpots.push({ x: cx + (R() - 0.5) * (w - 3), z: cz + (R() - 0.5) * (d - 3), bld });
+    if (!o.vault && R() < (o.small ? 0.35 : 0.55)) this.chestSpots.push({ x: cx + (R() - 0.5) * (w - 3), z: cz + (R() - 0.5) * (d - 3), bld });
     if (w > 9 && R() < 0.8) { // table / canapé
       const tx = cx + (R() - 0.5) * (w - 5), tz = cz + (R() - 0.5) * (d - 5);
       gb.box(tx, base + 0.5, tz, 2.2, 0.15, 1.2, '#a0663e'); gb.box(tx, base + 0.22, tz, 1.8, 0.45, 0.9, '#7a4a2a');
@@ -474,7 +521,7 @@ const World = {
   },
 
   buildNature(scene, R) {
-    const trees = [], pines = [], rocks = [], bushes = [];
+    const trees = [], pines = [], rocks = [], bushes = [], cacti = [], lollis = [];
     let tries = 0;
     while ((trees.length + pines.length) < 900 && tries++ < 12000) {
       const a = R() * TAU, d = Math.sqrt(R()) * (this.ISL - 40); const x = Math.cos(a) * d, z = Math.sin(a) * d;
@@ -484,6 +531,9 @@ const World = {
       const dens = vnoise(x * 0.013 + 5, z * 0.013 + 11);
       if (dens < 0.5 && R() > 0.12) continue;
       const s = 0.8 + R() * 0.7;
+      const B = this.biome(x, z);
+      if (B.candy > 0.5) { if (R() < 0.55) cacti.push({ x, y: h, z, s, r: R() * TAU }); else lollis.push({ x, y: h, z, s: s * 1.1, r: R() * TAU }); this.addCircle(x, z, 0.4 * s, h + 3 * s); continue; }
+      if (B.swamp > 0.5) { trees.push({ x, y: h, z, s: s * 1.2, swamp: true }); this.addCircle(x, z, 0.45 * s, h + 3.5 * s); continue; }
       if (h > 18 || dens > 0.72 || R() < 0.3) pines.push({ x, y: h, z, s, snow: h > 28 }); else trees.push({ x, y: h, z, s });
       this.addCircle(x, z, 0.45 * s, h + 3.5 * s);
     }
@@ -512,7 +562,7 @@ const World = {
     const trunk = new THREE.CylinderGeometry(0.22, 0.32, 2.4, 6); trunk.translate(0, 1.2, 0);
     mk(trunk, trees.concat(pines), (t, c) => c.set('#8a5a3c'), (d, t) => { d.position.set(t.x, t.y, t.z); d.scale.setScalar(t.s); d.rotation.set(0, 0, 0); }, 0, 0.06);
     const ball = new THREE.IcosahedronGeometry(1.7, 0); ball.translate(0, 3.6, 0);
-    mk(ball, trees, (t, c) => c.set(pick(['#4fbf3f', '#5fd35a', '#3fae4a', '#7ad34a'])), (d, t) => { d.position.set(t.x, t.y, t.z); d.scale.setScalar(t.s); d.rotation.set(0, t.x, 0); }, 0.05, 0.08);
+    mk(ball, trees, (t, c) => c.set(t.swamp ? pick(['#3f6b35', '#4a7a3a', '#557a30']) : pick(['#4fbf3f', '#5fd35a', '#3fae4a', '#7ad34a'])), (d, t) => { d.position.set(t.x, t.y, t.z); d.scale.setScalar(t.s); d.rotation.set(0, t.x, 0); }, 0.05, 0.08);
     const cone = new THREE.ConeGeometry(1.6, 4.4, 7); cone.translate(0, 4.2, 0);
     mk(cone, pines, (t, c) => c.set(t.snow ? '#e9f3ff' : pick(['#2f9a5a', '#2a8a52', '#37a862'])), (d, t) => { d.position.set(t.x, t.y, t.z); d.scale.setScalar(t.s); d.rotation.set(0, t.x, 0); }, 0.04, 0.08);
     const rock = new THREE.DodecahedronGeometry(1, 0);
@@ -520,6 +570,16 @@ const World = {
     const bush = new THREE.IcosahedronGeometry(1, 0);
     mk(bush, bushes, (t, c) => c.set(pick(['#46b84a', '#3aa845', '#58c95a'])), (d, t) => { d.position.set(t.x, t.y + 0.5 * t.s, t.z); d.scale.set(t.s * 1.3, t.s, t.s * 1.3); d.rotation.set(0, t.x, 0); }, 0, 0.07);
     this.bushes = bushes;
+    // désert de bonbons : cactus et sucettes géantes
+    const strip = g => { g.deleteAttribute('color'); return g; };
+    const cb = new GeoBuilder(); cb.addGeo(new THREE.CylinderGeometry(0.35, 0.4, 3.2, 8), M4(0, 1.6, 0), '#fff'); cb.addGeo(new THREE.CylinderGeometry(0.22, 0.22, 1.2, 7), M4(0.6, 1.6, 0, 0, 0, Math.PI / 2), '#fff'); cb.addGeo(new THREE.CylinderGeometry(0.22, 0.22, 1.1, 7), M4(0.95, 2.1, 0), '#fff'); cb.addGeo(new THREE.CylinderGeometry(0.2, 0.2, 0.9, 7), M4(-0.55, 2.2, 0, 0, 0, Math.PI / 2), '#fff'); cb.addGeo(new THREE.CylinderGeometry(0.2, 0.2, 0.8, 7), M4(-0.85, 2.55, 0), '#fff');
+    if (cacti.length) mk(strip(cb.build()), cacti, (t, c) => c.set(pick(['#4fbf6a', '#3fae5a', '#62c97a'])), (d, t) => { d.position.set(t.x, t.y, t.z); d.scale.setScalar(t.s); d.rotation.set(0, t.r, 0); }, 0, 0.06);
+    const stick = new THREE.CylinderGeometry(0.08, 0.08, 3, 6); stick.translate(0, 1.5, 0);
+    if (lollis.length) {
+      mk(stick, lollis, (t, c) => c.set('#ffffff'), (d, t) => { d.position.set(t.x, t.y, t.z); d.scale.setScalar(t.s); d.rotation.set(0, t.r, 0); }, 0, 0.04);
+      const candy = new THREE.CylinderGeometry(1.1, 1.1, 0.3, 16); candy.rotateX(Math.PI / 2); candy.translate(0, 3.6, 0);
+      mk(candy, lollis, (t, c) => c.set(pick(['#ff5c9a', '#7ad1ff', '#ffcf3f', '#b58cff', '#5fe0a0'])), (d, t) => { d.position.set(t.x, t.y, t.z); d.scale.setScalar(t.s); d.rotation.set(0, t.r, 0); }, 0, 0.07);
+    }
   },
   nearWall(x, z, pad) {
     const c = this.cell(x, z); if (!c) return false;
