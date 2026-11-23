@@ -376,3 +376,14 @@ body:not(.touch) .btns .gag { display: grid !important; right: auto; left: calc(
 #shop .list button b { color: var(--sun); white-space: nowrap; } #shop .list button small { display: block; font-size: 10px; }
 #shop .list button:disabled { opacity: .45; }
 #shop p { margin: 0; font-size: 11px; color: var(--mute); font-weight: 600; }
+/* ============ v3 sprint 4 : modes, étiquettes ============ */
+.modes { display: grid !important; grid-template-columns: 1fr 1fr; gap: 6px; }
+.mode { padding: 7px 10px !important; } .mode b { font-size: 16px !important; } .mode small { font-size: 10px !important; line-height: 1.2; }
+#tagLayer { position: absolute; inset: 0; }
+.ntag { position: absolute; left: 0; top: 0; display: none; flex-direction: column; align-items: center; gap: 2px; font-size: calc(11 * var(--u)); color: var(--mint); text-shadow: 0 1px 0 #000; }
+.ntag i { width: calc(40 * var(--u)); height: 4px; background: rgba(0,0,0,.5); border-radius: 2px; overflow: hidden; }
+.ntag s { display: block; height: 100%; background: var(--mint); }
+.ntag.down { color: #ff8a8a; } .ntag.down s { background: #ff5a5a; }
+#teamScore { position: absolute; left: 50%; top: calc(40 * var(--u)); transform: translateX(-50%); display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: calc(22 * var(--u)); text-shadow: 0 2px 0 var(--ink); background: var(--glass); padding: 2px 14px; border-radius: 12px; }
+#teamScore .t0 { color: var(--mint); } #teamScore .t1 { color: var(--pop); } #teamScore span { font-size: .6em; color: var(--mute); }
+@media (max-height: 430px) { .mode small { display: none; } }

@@ -77,7 +77,7 @@ const HUD = {
     $('alive').textContent = G.aliveCount(); $('kills').textContent = p.kills; $('coins').textContent = p.coins || 0; $('keyChip').hidden = !p.hasKey;
     // tempête
     const st = G.storm; const t = Math.max(0, Math.ceil(st.timer));
-    $('stormTxt').textContent = (st.phase >= STORM_PHASES.length ? 'FIN' : (st.shrinking ? '▼ ' : '⏱ ') + Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'));
+    $('stormTxt').textContent = (st.phase >= STORM_PHASES.length ? (G.mode.training ? 'Libre' : G.mode.rumble ? 'Zone fixe' : 'FIN') : (st.shrinking ? '▼ ' : '⏱ ') + Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'));
     $('stormTxt').classList.toggle('warn', st.shrinking);
     // inventaire
     const inv = p.slots.map(s => s ? s.kind + (s.w || s.c) + (s.rar || '') + (s.mag != null ? s.mag : '') + (s.n || '') : '-').join('|') + p.cur;
@@ -148,7 +148,7 @@ const HUD = {
     $('exitKart').hidden = !p.kart;
     this.mmT -= dt; if (this.mmT <= 0) { this.mmT = 0.08; this.drawMini(); this.drawCompass(); if (this.bigOpen) this.drawBig(); }
     $('fps').hidden = !Settings.showFps;
-    Pings.update();
+    Pings.update(); Nametags.update(G);
   },
   w2m(x, z, cx, cz, scale, S) { return [S / 2 + (x - cx) * scale, S / 2 + (z - cz) * scale]; },
   drawMini() {
@@ -168,8 +168,7 @@ const HUD = {
     // sons de tirs
     for (const n of G.shotMarks) { const age = G.time - n.t; if (age > 1.5) continue; const [x, y] = this.w2m(n.x, n.z, cx, cz, scale, S); ctx.fillStyle = `rgba(255,70,70,${1 - age / 1.5})`; ctx.beginPath(); ctx.arc(x, y, 4, 0, TAU); ctx.fill(); }
     // coéquipier
-    const mate = G.duoMateOf(G.player);
-    if (mate && mate.alive) { const [x, y] = this.w2m(mate.pos.x, mate.pos.z, cx, cz, scale, S); ctx.fillStyle = '#2ee6c8'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 5, 0, TAU); ctx.fill(); ctx.stroke(); }
+    for (const mate of G.mates(G.player)) if (mate.alive) { const [x, y] = this.w2m(mate.pos.x, mate.pos.z, cx, cz, scale, S); ctx.fillStyle = mate.knocked ? '#ff5a5a' : '#2ee6c8'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 5, 0, TAU); ctx.fill(); ctx.stroke(); }
     if (this.marker) { const [x, y] = this.w2m(this.marker.x, this.marker.z, cx, cz, scale, S); ctx.fillStyle = '#ffcf3f'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 6, y - 12); ctx.lineTo(x + 6, y - 12); ctx.fill(); }
     ctx.restore();
     // joueur (flèche)
@@ -207,7 +206,7 @@ const HUD = {
     const p = G.spectating || G.player; const [px, py] = this.w2m(p.pos.x, p.pos.z, 0, 0, sc, S);
     ctx.save(); ctx.translate(px, py); ctx.rotate(-G.camYaw); ctx.fillStyle = '#ffcf3f'; ctx.strokeStyle = '#2b1e5c'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(8, 9); ctx.lineTo(0, 4); ctx.lineTo(-8, 9); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
     if (this.marker) { const [x, y] = this.w2m(this.marker.x, this.marker.z, 0, 0, sc, S); ctx.fillStyle = '#ffcf3f'; ctx.strokeStyle = '#2b1e5c'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 8, y - 16); ctx.lineTo(x + 8, y - 16); ctx.closePath(); ctx.fill(); ctx.stroke(); }
-    const mate = G.duoMateOf(G.player); if (mate && mate.alive) { const [x, y] = this.w2m(mate.pos.x, mate.pos.z, 0, 0, sc, S); ctx.fillStyle = '#2ee6c8'; ctx.beginPath(); ctx.arc(x, y, 6, 0, TAU); ctx.fill(); }
+    for (const mate of G.mates(G.player)) if (mate.alive) { const [x, y] = this.w2m(mate.pos.x, mate.pos.z, 0, 0, sc, S); ctx.fillStyle = '#2ee6c8'; ctx.beginPath(); ctx.arc(x, y, 6, 0, TAU); ctx.fill(); }
   },
   drawCompass() {
     const ctx = this.cmp, W = ctx.canvas.width, H = ctx.canvas.height, G = Game;

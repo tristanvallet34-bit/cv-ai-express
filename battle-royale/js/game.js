@@ -115,14 +115,16 @@ const Game = {
     // tempête
     const st = this.storm; Object.assign(st, { cx: 0, cz: 0, r: 500, phase: 0, shrinking: false, timer: STORM_PHASES[0].wait * this.mode.storm });
     this.chooseNextCircle(); this.stormMesh.visible = true; this.supplyPhases = { 1: false, 3: false };
+    const skipBus = Modes.setup(this);
     // bus
     const a = Math.random() * TAU, off = rand(-120, 120);
     const sx = Math.cos(a) * 560, sz = Math.sin(a) * 560;
     const ex = -sx + Math.cos(a + Math.PI / 2) * off, ez = -sz + Math.sin(a + Math.PI / 2) * off;
     if (!this.busMesh) { this.busMesh = Models.bus(); this.scene.add(this.busMesh); }
-    this.busMesh.visible = true;
+    this.busMesh.visible = !skipBus;
     const len = Math.hypot(ex - sx, ez - sz);
-    this.bus = { sx, sz, ex, ez, t: 0, dur: len / 34, y: 150, active: true };
+    this.bus = { sx, sz, ex, ez, t: 0, dur: len / 34, y: 150, active: !skipBus };
+    if (skipBus) { this.phase = 'play'; this.matchStart = 0.001; this.stormMesh.visible = this.mode.rumble; }
     this.busMesh.rotation.y = Math.atan2(-(ex - sx), -(ez - sz));
     for (const b of this.bots) {
       const L = b.ai.pickLanding(); b.ai.landing = L;
@@ -130,10 +132,11 @@ const Game = {
       b.ai.jumpT = clamp(t + rand(-0.1, 0.05), 0.06 + Math.random() * 0.05, 0.94);
     }
     // coéquipier en duo : saute avec le joueur
-    this.camYaw = this.busMesh.rotation.y; this.camPitch = -0.25;
+    if (!skipBus) { this.camYaw = this.busMesh.rotation.y; this.camPitch = -0.25; }
     HUD.reset(); Pings.reset(); Announcer.reset(); this.lastCombat = -99; Music.stop(); Music.start('game'); Music.intensity = Music.target = 0.3;
     Input.resetAll(); document.body.classList.remove('victory', 'lowhp', 'knocked');
-    HUD.message('Le Bus Volant décolle ! Appuie sur <b>SAUTER</b> au-dessus de ta zone', 4);
+    if (!skipBus) HUD.message('Le Bus Volant décolle ! Appuie sur <b>SAUTER</b> au-dessus de ta zone', 4);
+    if (this.mod) setTimeout(() => HUD.message('Mode du jour : <b>' + dailyMod().n + '</b>', 3.5, 'poi'), 4200);
     document.body.classList.add('ingame');
   },
   cleanup() {
@@ -176,13 +179,13 @@ const Game = {
     this.lootGroup.add(g); this.loot.push(it); return it;
   },
   rollWeapon(minR, bonus) {
-    let w = pick(FLOOR_WEAPONS); if (w === 'rocket' && Math.random() < 0.55 && !minR) w = 'ar'; const W = WEAPONS[w];
+    let w = pick(FLOOR_WEAPONS); if (this.mod === 'sniper') w = pick(['sniper', 'crossbow']); else if (this.mod === 'rockets') w = 'rocket'; if (w === 'rocket' && Math.random() < 0.55 && !minR) w = 'ar'; const W = WEAPONS[w];
     const rar = clamp(rollRarity(Math.max(W.min, minR || 0), W.max, bonus || 0), W.min, W.max);
     return { kind: 'weapon', w, rar, mag: W.mag };
   },
   spawnFloorLoot(x, z) {
     const r = Math.random();
-    if (r < 0.07) { this.makeLoot({ kind: 'gag', g: pick(GAG_LIST) }, x, z); return; }
+    if (r < (this.mod === 'gags' ? 0.3 : 0.07)) { this.makeLoot({ kind: 'gag', g: pick(GAG_LIST) }, x, z); return; }
     if (r < 0.45) { const wd = this.rollWeapon(0); this.makeLoot(wd, x, z); const a = WEAPONS[wd.w].ammo; if (a) this.makeLoot({ kind: 'ammo', a, n: AMMO[a].pick * 2 }, x + 0.9, z + 0.4); }
     else if (r < 0.75) { const c = pick(FLOOR_CONS); this.makeLoot({ kind: 'cons', c, n: CONS[c].pick }, x, z); }
     else { const a = pick(Object.keys(AMMO)); this.makeLoot({ kind: 'ammo', a, n: AMMO[a].pick }, x, z); }
@@ -215,7 +218,7 @@ const Game = {
     if (t.coins > 0) { drop({ kind: 'coins', n: t.coins }); t.coins = 0; }
     if (t.hasKey) { drop({ kind: 'key' }); t.hasKey = false; }
     if (t.isBoss) Events.bossDrop(t);
-    for (const a in t.ammo) if (t.ammo[a] > 0) drop({ kind: 'ammo', a, n: t.ammo[a] });
+    for (const a in t.ammo) if (AMMO[a] && t.ammo[a] > 0) drop({ kind: 'ammo', a, n: t.ammo[a] });
     t.slots = [null, null, null, null, null];
   },
   pickup(f, it, auto) {
@@ -383,7 +386,13 @@ const Game = {
     }
   },
   inBush(f) { for (const b of World.bushes) if (dist2(f.pos.x, f.pos.z, b.x, b.z) < (b.s * 1.2) ** 2) return true; return false; },
-  duoMateOf(f) { if (!f || this.mode.team < 2) return null; for (const o of this.fighters) if (o !== f && o.team === f.team) return o; return null; },
+  mates(f) { if (!f || !this.mode || this.mode.team < 2) return []; return this.fighters.filter(o => o !== f && o.team === f.team && !o.isBoss); },
+  duoMateOf(f) {
+    const m = this.mates(f); if (!m.length) return null;
+    const pl = m.find(o => o.isPlayer && o.alive); if (pl && this.mode.team <= 4) return pl;
+    let best = null, bd = Infinity; for (const o of m) { if (!o.alive) continue; const d = dist2(o.pos.x, o.pos.z, f.pos.x, f.pos.z) + (o.knocked ? 1e7 : 0); if (d < bd) { bd = d; best = o; } }
+    return best || m[0];
+  },
   aliveCount() { let n = 0; for (const f of this.fighters) if (f.alive && !f.isBoss) n++; return n; },
   aliveTeams() { const s = new Set(); for (const f of this.fighters) if (f.alive && !f.isBoss) s.add(f.team); return s.size; },
   stat(k, n) { this.matchStats[k] = (this.matchStats[k] || 0) + n; },
@@ -395,12 +404,13 @@ const Game = {
     f.vel.set(0, 0, 0);
     if (f.isPlayer) {
       Sfx.tone(300, 0.4, 0.2, 'sine', 2);
-      const mate = this.duoMateOf(f); if (mate && mate.state === 'bus') setTimeout(() => this.jumpFromBus(mate), 600);
+      this.mates(f).forEach((m, i) => { if (m.state === 'bus') setTimeout(() => this.jumpFromBus(m), 500 + i * 350); });
     }
   },
 
   onElimination(t, att) {
     if (this.ended) return;
+    if (Modes.onElim(this, t, att)) return;
     const teams = this.aliveTeams();
     const pTeamAlive = this.fighters.some(f => f.alive && f.team === this.playerTeam);
     if (t.isPlayer) {
@@ -504,6 +514,7 @@ const Game = {
     this.updateGrenades(dt);
     Gags.update(dt);
     Events.update(dt);
+    Modes.update(this, dt);
     this.updateRockets(dt);
     this.updatePads(dt);
     this.updateKnocked(dt);
@@ -534,9 +545,8 @@ const Game = {
       f.bleed -= dt * 5.5; f.crouch = false;
       if (f.bleed <= 0) { eliminate(f, f.lastHitBy, 'bleed', false); continue; }
       // réanimation par un coéquipier
-      const mate = this.duoMateOf(f);
-      let revRate = 0;
-      if (mate && mate.alive && !mate.knocked && mate.reviving === f && dist2(mate.pos.x, mate.pos.z, f.pos.x, f.pos.z) < 2.6 * 2.6) revRate = 1;
+      const rev = this.mates(f).find(m => m.alive && !m.knocked && m.reviving === f && dist2(m.pos.x, m.pos.z, f.pos.x, f.pos.z) < 2.6 * 2.6);
+      const mate = rev; const revRate = rev ? 1 : 0;
       f.reviveT = revRate ? f.reviveT + dt : Math.max(0, f.reviveT - dt);
       if (f.reviveT >= 4) { revive(f); if (mate) mate.reviving = null; }
     }
@@ -548,7 +558,7 @@ const Game = {
     this.busMesh.position.set(x, B.y + Math.sin(this.time * 2) * 0.4, z);
     for (const f of this.fighters) {
       if (f.state !== 'bus') continue; f.pos.copy(this.busPos);
-      if (f.ai && B.t >= f.ai.jumpT) { const mate = this.duoMateOf(f); if (!(mate && mate.isPlayer && mate.state === 'bus')) this.jumpFromBus(f); }
+      if (f.ai && B.t >= f.ai.jumpT) { if (!this.mates(f).some(m => m.isPlayer && m.state === 'bus')) this.jumpFromBus(f); }
       if (B.t >= 1) this.jumpFromBus(f);
     }
     if (B.t >= 1.15) { this.phase = 'play'; B.active = false; this.busMesh.visible = false; }
@@ -578,7 +588,7 @@ const Game = {
     this.stormTick = (this.stormTick || 0) + dt;
     const tick = this.stormTick >= 1; if (tick) this.stormTick = 0;
     for (const f of this.fighters) {
-      if (!f.alive || f.state === 'bus') { f.inStorm = false; continue; }
+      if (!f.alive || f.state === 'bus' || f.isBoss) { f.inStorm = false; continue; }
       f.inStorm = dist2(f.pos.x, f.pos.z, st.cx, st.cz) > st.r * st.r;
       if (f.inStorm && tick && f.state === 'ground') { applyDamage(f, st.dps * (st.goldMul || 1), null, false, 'storm', null); if (f.isPlayer) Sfx.storm(); }
     }
@@ -701,9 +711,9 @@ const Game = {
     for (const m of Events.merchants) { const d = dist2(p.pos.x, p.pos.z, m.pos.x, m.pos.z); if (d < 4.5 * 4.5 && d < bd + 6) { bd = d; best = { isShop: true, m }; label = `<small>${p.coins || 0} pièces</small>Marchand : boutique`; } }
     const V = World.vault; if (V && !V.open) { const d = dist2(p.pos.x, p.pos.z, V.out.x, V.out.z); if (d < 3.5 * 3.5) { bd = d; best = { isVault: true }; label = p.hasKey ? '<small>clé</small>Ouvrir le coffre-fort' : '<small>verrouillé</small>Il faut la clé du coffre-fort'; } }
     for (const k of this.karts) { if (k.driver) continue; const d = dist2(p.pos.x, p.pos.z, k.pos.x, k.pos.z); if (d < bd + 4) { bd = d; best = k; label = '<small>véhicule</small>Conduire le kart'; } }
-    const mate = this.duoMateOf(p);
+    const mate = this.mates(p).find(m => m.alive && m.knocked && dist2(p.pos.x, p.pos.z, m.pos.x, m.pos.z) < 2.6 * 2.6);
     if (p.knocked) best = null;
-    if (mate && mate.alive && mate.knocked && !p.knocked && dist2(p.pos.x, p.pos.z, mate.pos.x, mate.pos.z) < 2.6 * 2.6) { best = { isRevive: true, f: mate }; label = '<small>maintenir</small>Réanimer ' + mate.name; }
+    if (mate && !p.knocked) { best = { isRevive: true, f: mate }; label = '<small>maintenir</small>Réanimer ' + mate.name; }
     this.interactable = best ? { ref: best, label } : null;
     if (best && best.isRevive) {
       p.reviving = I.held.interact ? best.f : null; this.reviveHold = best.f.reviveT;
@@ -842,7 +852,7 @@ const Game = {
     }
     if (f.kart) { this.animate(f, dt); return; }
     // au sol
-    let sp = f.knocked ? 1.8 : f.stunT > 0 ? 0 : f.flatT > 0 ? 2.4 : f.boxT > 0 ? Math.min(inp.speed, 3) : f.floatT > 0 ? 4.5 : inp.speed;
+    let sp = (this.speedMul || 1) * (f.knocked ? 1.8 : f.stunT > 0 ? 0 : f.flatT > 0 ? 2.4 : f.boxT > 0 ? Math.min(inp.speed, 3) : f.floatT > 0 ? 4.5 : inp.speed);
     const k = f.onGround ? 1 - Math.exp(-14 * dt) : 1 - Math.exp(-2.5 * dt);
     if (f.grapple) {
       const g = f.grapple; g.t -= dt; const dx = g.p.x - f.pos.x, dy = g.p.y - f.pos.y, dz = g.p.z - f.pos.z; const d = Math.hypot(dx, dy, dz);
@@ -864,10 +874,10 @@ const Game = {
     const nh = World.h(f.pos.x, f.pos.z);
     if (nh < -1.4 && nh < World.h(ox, oz) - 0.01) { f.pos.x = ox; f.pos.z = oz; }
     const gy = World.ground(f.pos.x, f.pos.z, f.pos.y);
-    if (inp.jump && f.onGround) { f.vy = 8.4; f.onGround = false; if (f.crouch) f.crouch = false; }
+    if (inp.jump && f.onGround) { f.vy = this.grav < 20 ? 9.5 : 8.4; f.onGround = false; if (f.crouch) f.crouch = false; }
     if (f.grapple) f.pos.y += f.vy * dt;
     else if (f.floatT > 0) { const ty = World.h(f.pos.x, f.pos.z) + 9; f.vy = lerp(f.vy, (ty - f.pos.y) * 1.5, 1 - Math.exp(-3 * dt)); f.pos.y += f.vy * dt; }
-    else { f.vy -= 24 * dt; f.pos.y += f.vy * dt; }
+    else { f.vy -= (this.grav || 24) * dt; f.pos.y += f.vy * dt; }
     if (f.pos.y <= gy) { f.pos.y = gy; f.vy = 0; f.onGround = true; }
     else if (f.onGround && f.pos.y - gy < 0.7 && f.vy <= 0) { f.pos.y = gy; f.vy = 0; }
     else f.onGround = false;

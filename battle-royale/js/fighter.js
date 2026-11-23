@@ -424,7 +424,7 @@ function applyDamage(t, dmg, att, head, wtype, at) {
   if (t.ai && att && att !== t && att.alive) t.ai.onHit(att);
   if (t.hp <= 0) {
     // Duo : mis à terre si un coéquipier est encore debout
-    const mateUp = Game.mode.team > 1 && wtype !== 'storm' && Game.fighters.some(o => o !== t && o.alive && o.team === t.team && !o.knocked);
+    const mateUp = Game.mode.team > 1 && !Game.mode.rumble && wtype !== 'storm' && Game.fighters.some(o => o !== t && o.alive && o.team === t.team && !o.knocked);
     if (mateUp) knockDown(t, att, wtype); else eliminate(t, att, wtype, head);
   }
 }

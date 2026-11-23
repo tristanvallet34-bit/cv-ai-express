@@ -124,8 +124,9 @@ class BotAI {
     this.healCD -= 0.3;
     const lowHp = f.hp < 60 || f.sh < 25;
     const mate = G.duoMateOf(f);
-    if (mate && mate.alive && mate.knocked && (!this.target || dist2(f.pos.x, f.pos.z, this.target.pos.x, this.target.pos.z) > 35 * 35 || Math.random() < 0.4)) {
-      this.target = null; this.setGoal(mate.pos.x, mate.pos.z, 'revive', mate); return;
+    const downMate = G.mates(f).find(m => m.alive && m.knocked && dist2(m.pos.x, m.pos.z, f.pos.x, f.pos.z) < 120 * 120);
+    if (downMate && G.mode.team <= 4 && (!this.target || dist2(f.pos.x, f.pos.z, this.target.pos.x, this.target.pos.z) > 35 * 35 || Math.random() < 0.4)) {
+      this.target = null; this.setGoal(downMate.pos.x, downMate.pos.z, 'revive', downMate); return;
     }
     if (this.target && !stormUrgent) { this.goalKind = 'fight'; return; }
     if (this.target && stormUrgent && Math.random() < 0.5) { this.goalKind = 'fight'; return; }
@@ -140,7 +141,7 @@ class BotAI {
       const it = this.findLoot(mate && mate.isPlayer ? 22 : 50);
       if (it) { it.claim = f; this.setGoal(it.pos.x, it.pos.z, 'loot', it); return; }
     }
-    if (mate && mate.alive && mate.isPlayer) {
+    if (mate && mate.alive && mate.isPlayer && G.mode.team <= 4) {
       const d = dist2(f.pos.x, f.pos.z, mate.pos.x, mate.pos.z);
       if (d > 10 * 10) { this.setGoal(mate.pos.x + rand(-3, 3), mate.pos.z + rand(-3, 3), 'follow', null); return; }
       this.goal = null; this.goalKind = 'idle'; return;

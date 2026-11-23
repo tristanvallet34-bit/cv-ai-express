@@ -51,10 +51,11 @@ const UI = {
     document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { Sfx.init(); Sfx.click(); this.openTab(b.dataset.tab); }));
     $('playBtn').addEventListener('click', () => this.play());
     $('panelClose').addEventListener('click', () => { Sfx.click(); this.openTab('play'); });
+    $('playSide').querySelector('.modes').innerHTML = MODE_ORDER.map(k => `<button class="mode" data-mode="${k}"><b>${MODES[k].n}</b><small>${MODES[k].desc}</small></button>`).join('');
     document.querySelectorAll('.mode').forEach(m => m.addEventListener('click', () => { Sfx.init(); Sfx.click(); this.mode = m.dataset.mode; Store.set('mode', this.mode); this.renderModes(); }));
     $('resumeBtn').addEventListener('click', () => this.togglePause(false));
     $('pauseSettings').addEventListener('click', () => { this.openTab('settings'); $('panel').classList.add('over'); });
-    $('quitBtn').addEventListener('click', () => { this.togglePause(false); if (Game.player && Game.player.alive && !Game.ended) { Game.player.hp = 0; Game.endMatch(false); } else Game.quitToLobby(); });
+    $('quitBtn').addEventListener('click', () => { this.togglePause(false); if (Game.mode && Game.mode.training) { Game.quitToLobby(); return; } if (Game.player && Game.player.alive && !Game.ended) { Game.player.hp = 0; Game.endMatch(false); } else Game.quitToLobby(); });
     $('endLobby').addEventListener('click', () => { $('endScreen').hidden = true; Game.quitToLobby(); });
     $('endAgain').addEventListener('click', () => { $('endScreen').hidden = true; Game.quitToLobby(); this.play(); });
     $('endWatch').addEventListener('click', () => { $('endScreen').hidden = true; $('specBar').hidden = false; });
@@ -263,7 +264,7 @@ const UI = {
   showEnd(r) {
     const el = $('endScreen'); el.hidden = false; el.classList.toggle('win', r.win);
     $('endPlace').innerHTML = r.win ? '<span>#1</span>VICTOIRE !' : `<span>#${r.place}</span>${r.place <= 5 ? 'Presque !' : r.place <= 10 ? 'Top 10 !' : 'Éliminé·e'}`;
-    $('endSub').textContent = `sur ${r.teams > 1 ? r.players / r.teams + ' équipes' : r.players + ' joueurs'}`;
+    $('endSub').textContent = Game.mode.rumble ? `Mêlée générale · ${Game.teamKills[0]} à ${Game.teamKills[1]}` : `sur ${r.teams > 1 ? r.players / r.teams + ' équipes' : r.players + ' joueurs'}`;
     $('endStats').innerHTML = [['Éliminations', r.kills], ['Dégâts', r.dmg], ['Survie', Math.floor(r.survived) + ' min ' + Math.round((r.survived % 1) * 60) + ' s']].map(([k, v]) => `<div><small>${k}</small><b>${v}</b></div>`).join('');
     $('endXp').innerHTML = Object.entries(r.xp).filter(([, v]) => v > 0).map(([k, v]) => `<div><span>${k[0].toUpperCase() + k.slice(1)}</span><b>+${v}</b></div>`).join('') + `<div class="tot"><span>Total</span><b>+${r.total} XP</b></div>` + (r.lvlUp ? `<div class="lvlup">NIVEAU ${r.lvl} ATTEINT !</div>` : '') + r.done.map(d => `<div class="chd">✔ Défi : ${d}</div>`).join('');
     $('endWatch').hidden = r.win || !Game.fighters.some(f => f.alive && !f.isPlayer);
