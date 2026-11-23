@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body class="inlobby splashing">
+<div id="app">
 <canvas id="game"></canvas>
 <div id="touch"></div>
 
@@ -67,6 +68,8 @@
 
   <!-- boutons tactiles -->
   <div id="joy"><div id="joyKnob"></div></div>
+  <div id="aimJoy"><div id="aimKnob"></div></div>
+  <div id="aimHint"><span>VISER<br>&amp; TIRER</span></div>
   <div class="btns">
     <button class="b fire" id="fireBtn" data-btn="fire" aria-label="Tirer"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="2.4"/><path d="M12 1v5M12 18v5M1 12h5M18 12h5" stroke="currentColor" stroke-width="2.4"/></svg></button>
     <button class="b ads" data-btn="ads" aria-label="Viser"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="1.6"/></svg></button>
@@ -157,9 +160,11 @@
 <div id="loading" hidden><div class="spin"></div><p>Le Bus Volant fait le plein…</p></div>
 <div id="rotate"><svg viewBox="0 0 24 24"><path d="M16.5 2h-9A1.5 1.5 0 006 3.5v17A1.5 1.5 0 007.5 22h9a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0016.5 2zM12 20.5a1 1 0 110-2 1 1 0 010 2zM16 17H8V5h8z"/></svg><p>Toon Royale se joue<br>en mode paysage</p><small>Tourne ton téléphone</small></div>
 
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="js/util.js"></script>
 <script src="js/data.js"></script>
+<script src="js/view.js"></script>
 <script src="js/render.js"></script>
 <script src="js/post.js"></script>
 <script src="js/world.js"></script>

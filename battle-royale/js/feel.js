@@ -108,7 +108,8 @@ const Pings = {
   // ping du joueur là où vise le réticule
   playerPing() {
     const G = Game, p = G.player; if (!p.alive) return;
-    const o = G.camPos, d = G.camDir;
+    let o = G.camPos, d = G.camDir;
+    if (View.arcade()) { o = _v2.set(p.pos.x, p.pos.y + 1.4, p.pos.z); d = _v3.set(-Math.sin(p.yaw), -0.05, -Math.cos(p.yaw)).normalize(); }
     if (G.aimTarget) { this.add('enemy', G.aimTarget.pos, G.aimTarget, p); HUD.message('📍 Ennemi signalé', 1.2); G.onPing('enemy', G.aimTarget.pos, G.aimTarget); return; }
     let t = World.ray(o.x, o.y, o.z, d.x, d.y, d.z, 300);
     const hit = o.clone().addScaledVector(d, Math.min(t, 300)); if (t >= 300) hit.y = World.h(hit.x, hit.z);
@@ -118,7 +119,7 @@ const Pings = {
     else { this.add('go', hit, null, p); G.onPing('go', hit, null); HUD.message('📍 On va là !', 1.2); }
   },
   update() {
-    const G = Game; const W = window.innerWidth, H = window.innerHeight;
+    const G = Game; const W = View.w, H = View.h;
     this.list = this.list.filter(p => G.time - p.t < (p.type === 'enemy' ? 6 : 14) && (!p.f || p.f.alive));
     this.els.forEach((el, i) => {
       const p = this.list[i]; if (!p) { el.style.display = 'none'; return; }

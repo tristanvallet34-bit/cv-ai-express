@@ -51,7 +51,7 @@ body.inlobby #touch { pointer-events: none; }
 .mini { width: 40px; height: 40px; border-radius: 12px; background: var(--glass); display: grid; place-items: center; }
 .mini svg { width: 22px; height: 22px; }
 #fps { font-size: 12px; background: var(--glass); padding: 2px 8px; border-radius: 6px; color: var(--mint); }
-#feed { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; max-width: 46vw; }
+#feed { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; max-width: calc(var(--aw, var(--aw, 100vw)) * .46); }
 .fl { background: var(--glass); padding: 3px 9px; border-radius: 8px; font-size: calc(12 * var(--u)); font-weight: 800; transition: opacity .5s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .fl b { color: #fff; } .fl b.me { color: var(--sun); } .fl b.ally { color: var(--mint); } .fl i { color: var(--mute); font-style: normal; font-size: .85em; }
 .fl.out { opacity: 0; }
@@ -153,7 +153,7 @@ body.lefthanded .tr { right: auto; left: max(10px, env(safe-area-inset-left)); a
 
 #bigmap { position: absolute; inset: 0; background: rgba(15,10,35,.8); display: grid; place-items: center; z-index: 5; }
 #bigmap .bm { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-#bigmapCv { width: min(88vh, 92vw); height: min(88vh, 92vw); max-width: 100%; border-radius: 16px; border: 3px solid #fff; }
+#bigmapCv { width: min(calc(var(--ah, 100vh) * .88), calc(var(--aw, var(--aw, 100vw)) * .92)); height: min(calc(var(--ah, 100vh) * .88), calc(var(--aw, var(--aw, 100vw)) * .92)); max-width: 100%; border-radius: 16px; border: 3px solid #fff; }
 #bigmap p { margin: 0; font-size: 12px; color: var(--mute); }
 
 /* ============ LOBBY ============ */
@@ -192,7 +192,7 @@ body.lefthanded .tr { right: auto; left: max(10px, env(safe-area-inset-left)); a
 #playBtn:active { transform: translateY(4px); box-shadow: 0 2px 0 #c9921a; }
 
 /* panneau */
-#panel { position: fixed; z-index: 4; top: max(76px, calc(env(safe-area-inset-top) + 66px)); bottom: max(12px, env(safe-area-inset-bottom)); right: max(16px, env(safe-area-inset-right)); width: min(560px, calc(100vw - 32px)); background: var(--panel); border-radius: 20px; display: flex; flex-direction: column; box-shadow: 0 10px 0 rgba(0,0,0,.2); backdrop-filter: blur(6px); }
+#panel { position: fixed; z-index: 4; top: max(76px, calc(env(safe-area-inset-top) + 66px)); bottom: max(12px, env(safe-area-inset-bottom)); right: max(16px, env(safe-area-inset-right)); width: min(560px, calc(var(--aw, 100vw) - 32px)); background: var(--panel); border-radius: 20px; display: flex; flex-direction: column; box-shadow: 0 10px 0 rgba(0,0,0,.2); backdrop-filter: blur(6px); }
 #panel.over { z-index: 9; top: max(16px, env(safe-area-inset-top)); left: 50%; right: auto; transform: translateX(-50%); }
 .ph { display: flex; align-items: center; justify-content: space-between; padding: 12px 12px 6px 18px; }
 .ph h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 24px; color: var(--sun); }
@@ -284,25 +284,17 @@ button.primary { background: var(--sun) !important; color: var(--ink); box-shado
 @keyframes rot { 50% { transform: rotate(-90deg); } }
 @media (orientation: portrait) and (pointer: coarse) { body.ingame #rotate { display: flex; } }
 
-/* lobby en portrait / petits écrans */
-@media (max-width: 720px) and (orientation: portrait) {
-  #lobby { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto auto; }
-  .nav { grid-row: 3; flex-direction: row; overflow-x: auto; align-self: stretch; touch-action: pan-x; }
-  .nav button { flex: none; padding: 8px 12px; font-size: 13px; }
-  .nav button.sel { transform: none; }
-  #lobbyCv { grid-column: 1; grid-row: 2; }
-  #playSide { grid-column: 1; grid-row: 4; }
-  .skinTag { bottom: auto; top: max(84px, calc(env(safe-area-inset-top) + 74px)); }
-  #dailyMini { display: none; }
-  .modes { flex-direction: row; } .mode { flex: 1; padding: 6px 8px; } .mode small { display: none; }
-  #panel { top: max(70px, env(safe-area-inset-top)); left: 16px; right: 16px; width: auto; }
-}
-@media (max-height: 430px) {
-  .brand { font-size: 22px; } .nav button { padding: 6px 12px; font-size: 13px; } .mode { padding: 6px 12px; } .mode b { font-size: 16px; }
-  #playBtn span { font-size: 30px; } #playBtn { padding: 8px; } .dm { display: none; } .dm:first-child { display: flex; }
-  .skinTag { bottom: 8px; }
-  #panel { top: 64px; }
-}
+body.short .brand { font-size: 22px; }
+body.short .nav button { padding: 6px 12px; font-size: 13px; }
+body.short .mode { padding: 6px 12px; }
+body.short .mode b { font-size: 16px; }
+body.short #playBtn span { font-size: 30px; }
+body.short #playBtn { padding: 8px; }
+body.short .dm { display: none; }
+body.short .dm:first-child { display: flex; }
+body.short .skinTag { bottom: 8px; }
+body.short #panel { top: 64px; }
+
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
 /* ============ v2 : splash, vignettes, sons, réanimation ============ */
@@ -329,13 +321,13 @@ body.knocked .btns > *:not(.interact):not(.heal), body.knocked .fireL, body.knoc
 body.splashing #lobby { visibility: hidden; }
 #splash .logo { font-size: clamp(64px, 19vmin, 150px); }
 body.victory #hud > *:not(#centerMsg) { display: none !important; }
-@media (max-height: 480px) {
-  #endScreen .card, #pause .card { padding: 12px 16px; gap: 6px; }
-  #endPlace { font-size: 26px; flex-direction: row; gap: 10px; align-items: baseline; justify-content: center; }
-  #endPlace span { font-size: 40px; }
-  .stats3 b { font-size: 18px; } #endXp { font-size: 12px; padding: 6px 10px; }
-  #endScreen .row button { padding: 9px; }
-}
+body.short48 #endScreen .card, body.short48 #pause .card { padding: 12px 16px; gap: 6px; }
+body.short48 #endPlace { font-size: 26px; flex-direction: row; gap: 10px; align-items: baseline; justify-content: center; }
+body.short48 #endPlace span { font-size: 40px; }
+body.short48 .stats3 b { font-size: 18px; }
+body.short48 #endXp { font-size: 12px; padding: 6px 10px; }
+body.short48 #endScreen .row button { padding: 9px; }
+
 
 /* ============ v3 sprint 1 : pings, annonceur ============ */
 .btns .ping { right: calc(190 * var(--u)); bottom: calc(14 * var(--u)); width: calc(44 * var(--u)); height: calc(44 * var(--u)); color: var(--sun); }
@@ -367,7 +359,7 @@ body:not(.touch) .btns .gag { display: grid !important; right: auto; left: calc(
 #bossBar { position: absolute; left: 50%; top: calc(44 * var(--u)); transform: translateX(-50%); width: calc(280 * var(--u)); text-align: center; font-family: var(--display); font-size: calc(15 * var(--u)); text-shadow: 0 2px 0 var(--ink); }
 #bossBar div { height: calc(10 * var(--u)); border-radius: 6px; background: rgba(0,0,0,.5); overflow: hidden; border: 2px solid #fff; margin-top: 2px; }
 #bossBar i { display: block; height: 100%; background: linear-gradient(90deg, #ff5cf0, #ffcf3f); transition: width .2s; }
-#shop { position: absolute; right: max(16px, env(safe-area-inset-right)); top: 50%; transform: translateY(-50%); width: min(330px, 46vw); background: var(--panel); border-radius: 18px; padding: 12px; pointer-events: auto; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 0 0 3px var(--sun); z-index: 6; }
+#shop { position: absolute; right: max(16px, env(safe-area-inset-right)); top: 50%; transform: translateY(-50%); width: min(330px, calc(var(--aw, var(--aw, 100vw)) * .46)); background: var(--panel); border-radius: 18px; padding: 12px; pointer-events: auto; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 0 0 3px var(--sun); z-index: 6; }
 #shop .sh { display: flex; justify-content: space-between; align-items: center; }
 #shop h3 { margin: 0; font-family: var(--display); font-weight: 400; color: var(--sun); font-size: 18px; }
 #shop .cw { display: flex; gap: 4px; align-items: center; } #shop .cw i { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6b0, #ffcf3f 55%, #c9921a); }
@@ -386,7 +378,8 @@ body:not(.touch) .btns .gag { display: grid !important; right: auto; left: calc(
 .ntag.down { color: #ff8a8a; } .ntag.down s { background: #ff5a5a; }
 #teamScore { position: absolute; left: 50%; top: calc(40 * var(--u)); transform: translateX(-50%); display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: calc(22 * var(--u)); text-shadow: 0 2px 0 var(--ink); background: var(--glass); padding: 2px 14px; border-radius: 12px; }
 #teamScore .t0 { color: var(--mint); } #teamScore .t1 { color: var(--pop); } #teamScore span { font-size: .6em; color: var(--mute); }
-@media (max-height: 430px) { .mode small { display: none; } }
+body.short .mode small { display: none; }
+
 /* ============ v3 sprint 5 : méta ============ */
 .stars { font-size: 11px; color: var(--sun); display: flex; gap: 4px; align-items: center; }
 .stars em { font-style: normal; color: var(--ink); padding: 0 6px; border-radius: 6px; font-size: 10px; }
@@ -396,8 +389,9 @@ body:not(.touch) .btns .gag { display: grid !important; right: auto; left: calc(
 .rankbox b { font-family: var(--display); font-weight: 400; font-size: 26px; color: var(--rc); }
 .rankbox span { font-size: 13px; } .rankbox small { font-size: 11px; color: var(--mute); font-weight: 600; }
 .subtabs { flex-wrap: wrap; }
-.nav { max-height: calc(100vh - 90px); overflow-y: auto; }
-@media (max-height: 430px) { .nav button { padding: 5px 10px; font-size: 12px; } }
+.nav { max-height: calc(var(--ah, 100vh) - 90px); overflow-y: auto; }
+body.short .nav button { padding: 5px 10px; font-size: 12px; }
+
 /* ============ v3 sprint 7 : multijoueur ============ */
 .netrow { display: flex; gap: 8px; margin: 8px 0; }
 .netrow button { flex: 1; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.1); font-size: 14px; }
@@ -405,3 +399,22 @@ body:not(.touch) .btns .gag { display: grid !important; right: auto; left: calc(
 .netcode { text-align: center; padding: 8px; border-radius: 14px; background: rgba(255,207,63,.12); border: 2px dashed var(--sun); }
 .netcode small { display: block; color: var(--mute); font-size: 11px; } .netcode b { font-family: var(--display); font-size: 40px; letter-spacing: .2em; color: var(--sun); }
 .netlist { display: flex; flex-direction: column; gap: 4px; } .netlist div { background: rgba(255,255,255,.07); border-radius: 10px; padding: 6px 10px; font-size: 14px; }
+
+/* ============ v4 : paysage intégral + vue arcade ============ */
+#app { position: fixed; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden; }
+body.rot #app { transform: rotate(90deg) translateY(-100%); transform-origin: top left; }
+body.rot #rotate { display: none !important; }
+#aimJoy { position: absolute; width: calc(120 * var(--u)); height: calc(120 * var(--u)); margin: calc(-60 * var(--u)) 0 0 calc(-60 * var(--u)); border-radius: 50%; background: rgba(255,79,139,.14); border: 2px solid rgba(255,79,139,.6); opacity: 0; transition: opacity .12s; pointer-events: none; }
+#aimJoy.on { opacity: 1; }
+#aimKnob { position: absolute; left: 50%; top: 50%; width: 46%; height: 46%; border-radius: 50%; background: rgba(255,79,139,.9); border: 3px solid #fff; transform: translate(-50%,-50%); }
+#aimHint { position: absolute; right: max(calc(40 * var(--u)), env(safe-area-inset-right)); bottom: calc(46 * var(--u)); width: calc(118 * var(--u)); height: calc(118 * var(--u)); border-radius: 50%; border: 3px dashed rgba(255,79,139,.55); background: rgba(255,79,139,.12); display: none; place-items: center; text-align: center; font-family: var(--display); font-size: calc(12 * var(--u)); line-height: 1.1; color: rgba(255,255,255,.8); pointer-events: none; }
+body.arcade.touch:not(.air):not(.dead):not(.driving) #aimHint { display: grid; }
+body.arcade #xhair, body.arcade .btns .fire, body.arcade .btns .ads, body.arcade .fireL, body.arcade #compass { display: none !important; }
+body.arcade .btns .reload { right: calc(170 * var(--u)); bottom: calc(26 * var(--u)); }
+body.arcade .btns .jump { right: calc(14 * var(--u)); bottom: calc(176 * var(--u)); }
+body.arcade .btns .crouch { right: calc(232 * var(--u)); bottom: calc(80 * var(--u)); }
+body.arcade .btns .heal { right: calc(76 * var(--u)); bottom: calc(196 * var(--u)); }
+body.arcade .btns .gag { right: calc(176 * var(--u)); bottom: calc(150 * var(--u)); }
+body.arcade .btns .ping { right: calc(236 * var(--u)); bottom: calc(18 * var(--u)); }
+body.arcade .btns .interact { right: calc(240 * var(--u)); bottom: calc(150 * var(--u)); }
+body.arcade .btns .emote { right: calc(14 * var(--u)); bottom: calc(240 * var(--u)); }

@@ -15,8 +15,11 @@ const TIMES = {
   night: { n: 'Nuit étoilée', top: '#070d2e', hor: '#2a3f8a', bot: '#141c44', sun: '#b8ccff', sunI: 0.55, sunPos: [-140, 120, 90], hemiS: '#7f95e0', hemiG: '#22284a', hemiI: 0.65, amb: 0.28, fog: '#24316e', cloud: '#5a6aa8', deep: '#122a66', shallow: '#2f7fb0', foam: '#bfe6ff', sat: 1.05, con: 1.06, tint: [0.92, 0.98, 1.1], bloom: 0.45, stars: 1 },
 };
 
+const CUT_DECL = 'uniform vec3 cutPos; uniform float cutOn; varying vec3 vCutW;\n';
+const CUT_FRAG = `if (cutOn > 0.5 && vCutW.y > cutPos.y + 2.4) { float cr = length(vCutW.xz - cutPos.xz); float ck = smoothstep(11.0, 7.0, cr);
+  if (ck > 0.0 && fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453) < ck) discard; }`;
 const Look = {
-  toon: true, grad: null, uniforms: { time: { value: 0 } }, outlines: {}, swayShaders: [],
+  toon: true, grad: null, uniforms: { time: { value: 0 }, cutPos: { value: new THREE.Vector3() }, cutOn: { value: 0 } }, outlines: {}, swayShaders: [],
   init() {
     const q = Game.resolveQuality();
     this.toon = q !== 'low';
@@ -42,23 +45,25 @@ const Look = {
     const k = thick + (color || ''); if (this.outlines[k]) return this.outlines[k];
     const m = new THREE.ShaderMaterial({
       uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { thick: { value: thick }, color: { value: new THREE.Color(color || '#1d1440') } }]),
-      vertexShader: `attribute vec3 onormal; uniform float thick;
+      vertexShader: `attribute vec3 onormal; uniform float thick; varying vec3 vCutW;
         #include <fog_pars_vertex>
         void main(){ vec3 p = position + onormal * thick;
           vec4 w = vec4(p, 1.0);
           #ifdef USE_INSTANCING
           w = instanceMatrix * w;
           #endif
+          vCutW = (modelMatrix * w).xyz;
           vec4 mvPosition = modelViewMatrix * w; gl_Position = projectionMatrix * mvPosition;
           #include <fog_vertex>
         }`,
-      fragmentShader: `uniform vec3 color;
+      fragmentShader: `uniform vec3 color; uniform vec3 cutPos; uniform float cutOn; varying vec3 vCutW;
         #include <fog_pars_fragment>
-        void main(){ gl_FragColor = vec4(color, 1.0);
+        void main(){ ${CUT_FRAG} gl_FragColor = vec4(color, 1.0);
           #include <fog_fragment>
         }`,
       side: THREE.BackSide, fog: true,
     });
+    m.uniforms.cutPos = this.uniforms.cutPos; m.uniforms.cutOn = this.uniforms.cutOn;
     this.outlines[k] = m; return m;
   },
   addOutline(mesh, thick, color) {
@@ -68,6 +73,29 @@ const Look = {
     else o = new THREE.Mesh(mesh.geometry, this.outlineMat(thick, color));
     o.name = 'outline'; mesh.add(o); if (mesh.isInstancedMesh) { o.position.set(0, 0, 0); }
     mesh.userData.outline = o; return o;
+  },
+  // silhouette visible à travers les murs (joueur et coéquipiers)
+  addXray(mesh, color) {
+    const k = 'x' + color; this.xmats = this.xmats || {};
+    const m = this.xmats[k] || (this.xmats[k] = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, depthFunc: THREE.GreaterDepth, depthWrite: false, fog: false }));
+    const x = new THREE.Mesh(mesh.geometry, m); x.renderOrder = 10; x.name = 'xray'; mesh.add(x); return x;
+  },
+  // vue arcade : toits, étages et feuillages s'effacent autour du joueur
+  cutaway(mat) {
+    const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey.bind(mat);
+    mat.onBeforeCompile = (sh, r) => {
+      if (prev) prev(sh, r);
+      sh.uniforms.cutPos = this.uniforms.cutPos; sh.uniforms.cutOn = this.uniforms.cutOn;
+      sh.vertexShader = 'varying vec3 vCutW;\n' + sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
+        #ifdef USE_INSTANCING
+        vCutW = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+        #else
+        vCutW = (modelMatrix * vec4(transformed, 1.0)).xyz;
+        #endif`);
+      sh.fragmentShader = CUT_DECL + sh.fragmentShader.replace('void main() {', 'void main() {\n' + CUT_FRAG);
+    };
+    mat.customProgramCacheKey = () => prevKey() + 'cut';
+    mat.needsUpdate = true;
   },
   // feuillage qui ondule au vent
   sway(mat, amp) {

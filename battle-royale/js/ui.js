@@ -10,6 +10,9 @@ const SETTINGS_UI = [
   { k: 'camShake', n: 'Tremblement de caméra', t: 'toggle' },
   { k: 'timeOfDay', n: 'Ambiance des parties', t: 'select', opts: { random: 'Aléatoire', morning: 'Matin rose', day: 'Plein soleil', sunset: 'Coucher de soleil', night: 'Nuit étoilée' } },
   { sec: 'Contrôles' },
+  { k: 'view', n: 'Vue de jeu', t: 'select', opts: { arcade: 'Arcade : vue de dessus, double joystick', tps: 'Action : 3e personne, visée libre' } },
+  { k: 'camZoom', n: 'Hauteur de caméra (arcade)', t: 'range', min: 0.75, max: 1.5, step: 0.05, fmt: v => Math.round(v * 100) + '%' },
+  { k: 'forceLandscape', n: 'Paysage intégral', t: 'toggle', d: 'Téléphone tenu droit : le jeu reste en paysage' },
   { k: 'sens', n: 'Sensibilité caméra', t: 'range', min: 0.3, max: 2.5, step: 0.05, fmt: v => v.toFixed(2) },
   { k: 'adsSens', n: 'Sensibilité en visée', t: 'range', min: 0.2, max: 1.5, step: 0.05, fmt: v => v.toFixed(2) },
   { k: 'invertY', n: 'Inverser l\'axe vertical', t: 'toggle' },
@@ -46,6 +49,7 @@ const UI = {
     document.body.classList.toggle('leftfire', Settings.leftFire);
     document.body.classList.toggle('lefthanded', Settings.leftHanded);
     document.body.classList.toggle('touch', Input.isTouch);
+    document.body.classList.toggle('arcade', View.arcade());
   },
   bind() {
     document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { Sfx.init(); Sfx.click(); this.openTab(b.dataset.tab); }));
@@ -64,8 +68,8 @@ const UI = {
     $('fsBtn').addEventListener('click', () => { const d = document.documentElement; try { const r = (d.requestFullscreen || d.webkitRequestFullscreen).call(d); if (r && r.catch) r.catch(() => { }); } catch (e) { } try { screen.orientation.lock('landscape').catch(() => { }); } catch (e) { } });
     $('pauseBtn').addEventListener('pointerdown', e => { e.stopPropagation(); this.togglePause(); });
     $('exitKart').addEventListener('pointerdown', e => { e.stopPropagation(); Input.pressed.exitKart = true; });
-    $('lobbyCv').addEventListener('pointerdown', e => { this.drag = { x: e.clientX }; });
-    window.addEventListener('pointermove', e => { if (this.drag && Game.phase === 'lobby') { this.charRot += (e.clientX - this.drag.x) * 0.01; this.drag.x = e.clientX; } });
+    $('lobbyCv').addEventListener('pointerdown', e => { this.drag = { x: View.pt(e).x }; });
+    window.addEventListener('pointermove', e => { if (this.drag && Game.phase === 'lobby') { const x = View.pt(e).x; this.charRot += (x - this.drag.x) * 0.01; this.drag.x = x; } });
     window.addEventListener('pointerup', () => this.drag = null);
     $('rankedTgl').addEventListener('change', e => { Profile.ranked = e.target.checked; saveProfile(); Sfx.click(); });
     $('danceBtn').addEventListener('click', () => { this.danceT = 3; Sfx.init(); [523, 659, 784, 659, 523].forEach((f, i) => setTimeout(() => Sfx.tone(f, 0.15, 0.15, 'square'), i * 120)); });
@@ -101,7 +105,7 @@ const UI = {
     C.lookAt(P.x, 6, P.z); C.fov = 55; C.updateProjectionMatrix();
     Game.camPos.copy(C.position); World.sky.position.set(C.position.x, 0, C.position.z);
     const so = Look.sunOff; Game.sun.position.set(P.x + so.x, so.y, P.z + so.z); Game.sun.target.position.set(P.x, 0, P.z);
-    Look.update(dt, C.position);
+    Look.update(dt, C.position); Look.uniforms.cutOn.value = 0;
     R.setScissorTest(false); Game.renderScene();
     // personnage sur son podium
     const w = cv.clientWidth, h = cv.clientHeight; if (!w || !h || $('lobby').hidden || document.body.classList.contains('splashing')) return;
@@ -115,12 +119,12 @@ const UI = {
     Pp.arms.position.y = 1.38 + Pp.body.position.y;
     const gl = Pp.glider.visible;
     const far = w / h < 0.9 ? 1.6 : 1; this.lobbyCam.aspect = w / h; this.lobbyCam.position.set(0, gl ? 2.4 : 1.4, (gl ? 9 : 6.2) * far); this.lobbyCam.lookAt(0, gl ? 1.4 : 1.0, 0); this.lobbyCam.updateProjectionMatrix();
-    const rect = cv.getBoundingClientRect(); const H = window.innerHeight;
+    const rect = View.rect(cv); const H = View.h;
     R.autoClear = false; R.clearDepth();
     R.setScissorTest(true);
     R.setViewport(rect.left, H - rect.bottom, rect.width, rect.height); R.setScissor(rect.left, H - rect.bottom, rect.width, rect.height);
     R.render(this.lobbyScene, this.lobbyCam);
-    R.setScissorTest(false); R.setViewport(0, 0, window.innerWidth, window.innerHeight); R.autoClear = true;
+    R.setScissorTest(false); R.setViewport(0, 0, View.w, View.h); R.autoClear = true;
   },
   showLobby() {
     Game.phase = 'lobby';
@@ -247,7 +251,8 @@ const UI = {
     if (k === 'vol') Sfx.setVol(Settings.vol);
     if (k === 'hudScale') Game.resize();
     if (k === 'fov' && Game.camera) { Game.camera.fov = Settings.fov; Game.camera.updateProjectionMatrix(); }
-    if (k === 'leftFire' || k === 'leftHanded') this.applyBodyClasses();
+    if (k === 'leftFire' || k === 'leftHanded' || k === 'view') this.applyBodyClasses();
+    if (k === 'forceLandscape') Game.resize();
     if (k === 'music') { Sfx.musicOn = Settings.music; Music.setEnabled(Settings.music); if (Game.phase === 'lobby') Sfx.startMusic(); }
     if (k === 'name' || k === 'botLevel') { this.renderTop(); this.renderModes(); }
   },
@@ -266,7 +271,7 @@ const UI = {
   },
   renderHelp(body) {
     body.innerHTML = `<div class="help">
-      <div><h4>📱 Sur téléphone</h4><p><b>Côté gauche</b> : glisse pour te déplacer (pousse à fond vers l'avant pour sprinter).<br><b>Côté droit</b> : glisse pour tourner la caméra.<br><b>Bouton rouge</b> : tirer — tu peux le faire glisser pour viser en même temps.<br>Les autres boutons : viser, sauter, s'accroupir, recharger, soigner, ramasser.</p></div>
+      <div><h4>📱 Sur téléphone</h4><p><b>Vue arcade (par défaut)</b> : pouce gauche pour te déplacer (à fond = sprint), pouce droit pour viser — pousse dans une direction et tu tires en continu ; une touche brève tire sur l'ennemi le plus proche. Relâche le joystick droit pour lancer une grenade.<br><b>Vue action</b> (Réglages) : glisse à droite pour la caméra, bouton rose pour tirer.<br>Les autres boutons : sauter, s'accroupir (glissade en sprint), recharger, soigner, Gag, signaler, ramasser.</p></div>
       <div><h4>⌨️ Sur ordinateur</h4><p><b>ZQSD / WASD</b> se déplacer · <b>Souris</b> viser · <b>Clic</b> tirer · <b>Clic droit</b> viser · <b>Espace</b> sauter · <b>C</b> accroupi · <b>R</b> recharger · <b>E</b> ramasser/ouvrir · <b>H</b> soin rapide · <b>1-5</b> objets · <b>M</b> carte · <b>Maj</b> sprint · <b>Échap</b> pause</p></div>
       <div><h4>🚌 Le déroulement</h4><p>Saute du Bus Volant au-dessus de la zone qui te plaît, plane jusqu'au sol, fouille les maisons et les <b>coffres dorés</b>. La <b>tempête violette</b> se resserre : reste dans le cercle blanc de la carte. Le dernier joueur (ou duo) en vie gagne.</p></div>
       <div><h4>🎒 Le loot</h4><p>Rareté : <span style="color:${RARITY[0].c}">Commun</span> · <span style="color:${RARITY[1].c}">Peu commun</span> · <span style="color:${RARITY[2].c}">Rare</span> · <span style="color:${RARITY[3].c}">Épique</span> · <span style="color:${RARITY[4].c}">Légendaire</span>. Plus c'est rare, plus ça fait mal. Les <b>ravitaillements</b> qui tombent du ciel contiennent du légendaire.</p></div>

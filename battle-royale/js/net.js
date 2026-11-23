@@ -153,6 +153,7 @@ const Net = {
   },
   hostAct(f, m) {
     const G = Game; if (!f.alive) return;
+    if (f.netIn && f.state !== 'bus') f.pos.set(f.netIn.x, f.netIn.y, f.netIn.z);
     switch (m.a) {
       case 'pick': { const it = G.loot.find(i => i.nid === m.nid && !i.taken); if (it && dist2(f.pos.x, f.pos.z, it.pos.x, it.pos.z) < 4 * 4) G.pickup(f, it, false); break; }
       case 'chest': { const c = G.chests[m.i]; if (c && !c.open && dist2(f.pos.x, f.pos.z, c.pos.x, c.pos.z) < 4 * 4) G.openChest(c, f); break; }
@@ -272,7 +273,7 @@ const Net = {
     const G = Game, p = G.player; if (!p) return;
     this.sendT = 0.05;
     {
-      const o = G._o || G.camPos, d = G.camDir;
+      const arc = View.arcade() && G.shootO; const o = arc ? G.shootO : (G._o || G.camPos), d = arc ? G.shootDir : G.camDir;
       const fl = (p.onGround ? 1 : 0) | (p.crouch ? 4 : 0) | (p.ads ? 8 : 0) | (p.emoteT > 0 ? 16 : 0) | (p.slideT > 0 ? 64 : 0);
       this.send({ t: 'in', x: +p.pos.x.toFixed(2), y: +p.pos.y.toFixed(2), z: +p.pos.z.toFixed(2), yaw: +p.yaw.toFixed(3), pitch: +p.pitch.toFixed(3), st: ST_CODE[p.state], fl, mv: +p.moveAmt.toFixed(2), seq: G.shotSeq, ox: o.x, oy: o.y, oz: o.z, dx: d.x, dy: d.y, dz: d.z, rv: p.reviving ? p.reviving.nid : -1 });
     }

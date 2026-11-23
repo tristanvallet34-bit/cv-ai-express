@@ -83,7 +83,7 @@ const BOT_NAMES = ['Biscotte', 'Zorglub', 'PixelPanda', 'Moustik', 'CapitaineFri
 const MODES = {
   solo: { n: 'Solo', desc: '50 joueurs · chacun pour soi', players: 50, team: 1, storm: 1 },
   duo: { n: 'Duo', desc: '25 équipes de 2 · avec un coéquipier IA', players: 50, team: 2, storm: 1 },
-  quick: { n: 'Express', desc: '24 joueurs · tempête rapide · partie de 5 min', players: 24, team: 1, storm: 0.55 },
+  quick: { n: 'Express', desc: '32 joueurs · zone réduite · parties de 4 min', players: 32, team: 1, storm: 0.5, small: true },
 };
 
 // phases de la tempête : attente, rétrécissement (s), facteur de rayon, dégâts/s
@@ -118,7 +118,7 @@ const SETTINGS_DEF = {
   quality: 'auto', fpsCap: 60, showFps: false, sens: 1.0, adsSens: 0.7, invertY: false,
   aimAssist: true, autoFire: false, fov: 70, leftFire: true, leftHanded: false, hudScale: 1.0,
   vol: 0.7, music: true, vibration: true, dmgNumbers: true, autoPickup: true, botLevel: 'normal',
-  camShake: true, sprintAuto: true, minimapZoom: 1, name: 'Joueur', timeOfDay: 'random', soundViz: true, announcer: true,
+  camShake: true, sprintAuto: true, minimapZoom: 1, name: 'Joueur', timeOfDay: 'random', soundViz: true, announcer: true, view: 'arcade', forceLandscape: true, camZoom: 1,
 };
 const Settings = Object.assign({}, SETTINGS_DEF, Store.get('settings', {}));
 function saveSettings() { Store.set('settings', Settings); }

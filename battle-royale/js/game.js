@@ -42,8 +42,11 @@ const Game = {
     this.chestMat = Look.mat({ vertexColors: true, emissive: 0x553300 });
     this.rocketGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.7, 8).rotateX(Math.PI / 2);
     this.boltGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.8, 5).rotateX(Math.PI / 2);
+    const alg = new THREE.PlaneGeometry(0.22, 1).rotateX(-Math.PI / 2); alg.translate(0, 0, -0.5);
+    this.aimLine = new THREE.Mesh(alg, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false, fog: false }));
+    this.aimLine.visible = false; this.aimLine.renderOrder = 3;
     this.lootGroup = new THREE.Group(); this.scene.add(this.lootGroup);
-    this.dynGroup = new THREE.Group(); this.scene.add(this.dynGroup);
+    this.dynGroup = new THREE.Group(); this.scene.add(this.dynGroup); this.scene.add(this.aimLine);
     Post.init(this.renderer);
     World.build(this.scene);
     Events.init(this.scene);
@@ -91,7 +94,7 @@ const Game = {
     this.resize();
   },
   resize() {
-    const w = window.innerWidth, h = window.innerHeight;
+    View.update(); const w = View.w, h = View.h;
     this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
     Post.setSize(w, h, this.pr || 1);
     document.documentElement.style.setProperty('--hud', Settings.hudScale * Math.min(1.15, Math.max(0.7, Math.min(w, h) / 420)));
@@ -121,13 +124,14 @@ const Game = {
       f.ai = new BotAI(f); this.fighters.push(f); this.bots.push(f);
     }
     for (const f of this.fighters) { f.input = { dx: 0, dz: 0, speed: 6, jump: false }; this.dynGroup.add(f.mesh); f.mesh.visible = false; }
+    for (const f of this.fighters) if (f === this.player || f.team === 0 && this.mode.team > 1) { const P = f.parts, c = f === this.player ? '#ffcf3f' : '#2ee6c8'; for (const m of [P.body, P.legL, P.legR, P.arms.children[0]]) Look.addXray(m, c); }
     // loot
     for (const s of World.lootSpots) if (Math.random() < 0.85) this.spawnFloorLoot(s.x, s.z);
     for (const s of World.chestSpots) if (Math.random() < 0.8) this.spawnChest(s.x, s.z);
     this.spawnKarts();
     this.player.coins = 0; Events.reset();
     // tempête
-    const st = this.storm; Object.assign(st, { cx: 0, cz: 0, r: 500, phase: 0, shrinking: false, timer: STORM_PHASES[0].wait * this.mode.storm });
+    const st = this.storm; Object.assign(st, { cx: 0, cz: 0, r: this.mode.small ? 330 : 500, phase: 0, shrinking: false, timer: STORM_PHASES[0].wait * this.mode.storm });
     this.chooseNextCircle(); this.stormMesh.visible = true; this.supplyPhases = { 1: false, 3: false };
     const skipBus = Modes.setup(this);
     // bus
@@ -167,7 +171,7 @@ const Game = {
   chooseNextCircle() {
     const st = this.storm; const P = STORM_PHASES[Math.min(st.phase, STORM_PHASES.length - 1)];
     st.nr = st.r * P.f;
-    if (st.phase === 0) st.nr = 230;
+    if (st.phase === 0) st.nr = this.mode.small ? 150 : 230;
     for (let i = 0; i < 30; i++) {
       const a = Math.random() * TAU, d = Math.random() * (st.r - st.nr) * 0.85;
       const x = st.cx + Math.cos(a) * d, z = st.cz + Math.sin(a) * d;
@@ -301,7 +305,7 @@ const Game = {
   },
   throwGrenade(f) {
     const it = f.item; if (!it || !CONS[it.c] || !CONS[it.c].throw) return;
-    const dir = f.isPlayer ? this.camDir.clone() : new THREE.Vector3(-Math.sin(f.yaw), 0.35, -Math.cos(f.yaw));
+    const dir = f.isPlayer && !View.arcade() ? this.camDir.clone() : new THREE.Vector3(-Math.sin(f.yaw), 0.35, -Math.cos(f.yaw));
     dir.y += 0.25; dir.normalize();
     const p = new THREE.Vector3(f.pos.x, f.eyeY, f.pos.z).addScaledVector(dir, 0.8);
     const m = new THREE.Mesh(Models.consumable(it.c), Models.mat); m.position.copy(p); this.dynGroup.add(m);
@@ -611,13 +615,14 @@ const Game = {
   },
   // ---------- joueur ----------
   updatePlayerInput(dt) {
-    const p = this.player; const I = Input;
+    const p = this.player; const I = Input; const arc = View.arcade();
+    if (arc) { I.lookDX = I.lookDY = 0; this.camYaw = 0; this.camPitch = -0.9; }
     // regard
     const S = (p.ads ? Settings.adsSens : 1) * Settings.sens * (Input.isTouch ? 0.0055 : 0.0032) * (p.ads && p.weapon && WEAPONS[p.weapon.w].scope ? 0.35 : 1);
     let dx = I.lookDX * S, dy = I.lookDY * S * (Settings.invertY ? -1 : 1); I.lookDX = 0; I.lookDY = 0;
     // assistance de visée : ralentissement près d'une cible
     this.aimTarget = null;
-    if (p.alive && p.state === 'ground' && !p.kart && p.weapon) this.computeAimAssist(p);
+    if (!arc && p.alive && p.state === 'ground' && !p.kart && p.weapon) this.computeAimAssist(p);
     if (this.aimTarget && Settings.aimAssist) { dx *= 0.6; dy *= 0.6; }
     this.camYaw -= dx; this.camPitch = clamp(this.camPitch - dy, -1.35, 1.2);
     if (this.aimTarget && Settings.aimAssist && (I.fire || Math.abs(I.jx) + Math.abs(I.jy) > 0.1) && !(p.weapon && WEAPONS[p.weapon.w].scope)) {
@@ -626,13 +631,14 @@ const Game = {
       const ay = t.pos.y + 1.2 - this.camPos.y; const wp = Math.atan2(ay, Math.hypot(ax, az)); this.camPitch += clamp(wp - this.camPitch, -0.3 * dt, 0.3 * dt);
     }
     // recul
+    if (arc) p.recoil = 0;
     if (p.recoil > 0) { const r = Math.min(p.recoil, p.recoil * 12 * dt + 0.001); this.camPitch = Math.min(1.2, this.camPitch + r); p.recoil -= r; }
     p.spread = Math.max(0, p.spread - dt * 0.12);
     // boutons globaux
     if (I.consume('pause')) { UI.togglePause(); }
     if (I.consume('map')) HUD.toggleBig(!HUD.bigOpen);
     if (!p.alive) { this.consumeAll(); return; }
-    p.yaw = this.camYaw; p.pitch = this.camPitch;
+    if (!arc) { p.yaw = this.camYaw; p.pitch = this.camPitch; }
     if (p.state === 'bus') {
       if ((I.consume('jumpBus') || I.consume('jump') || I.consume('interact')) && this.busPos && Math.hypot(this.busPos.x, this.busPos.z) < World.ISL - 30) this.jumpFromBus(p);
       this.consumeAll(); return;
@@ -646,12 +652,14 @@ const Game = {
       if (I.consume('glide') || I.consume('jump')) this.deployGlider(p);
       this.consumeAll(); return;
     }
-    if (p.kart) { this.driveInput(p, dt); return; }
+    if (p.kart) { this.aimLine.visible = false; this.driveInput(p, dt); return; }
     const W = p.weapon ? WEAPONS[p.weapon.w] : null;
+    if (arc) this.arcadeAim(p, mx * mag, mz * mag, W); else this.aimLine.visible = false;
     // visée (ADS)
-    p.ads = (I.ads || I.adsTouch) && !!W && p.reloadT <= 0;
-    const firing = I.fire || (Settings.autoFire && this.aimTarget && this.aimAuto);
-    const sprint = (Settings.sprintAuto && mag > 0.95 && I.jy > 0.75 && !firing && !p.ads && !p.crouch && !p.using) || (I.sprinting && !firing);
+    p.ads = arc ? !!(W && W.scope && this.arcFiring) : (I.ads || I.adsTouch) && !!W && p.reloadT <= 0;
+    const firing = arc ? this.arcFiring : I.fire || (Settings.autoFire && this.aimTarget && this.aimAuto);
+    const sprint = arc ? (Settings.sprintAuto && mag > 0.95 && !firing && !p.crouch && !p.using) || (I.sprinting && !firing)
+      : (Settings.sprintAuto && mag > 0.95 && I.jy > 0.75 && !firing && !p.ads && !p.crouch && !p.using) || (I.sprinting && !firing);
     p.sprinting = sprint && p.onGround;
     inp.speed = p.knocked ? 1.8 : p.reviving ? 0 : p.using ? 3.4 : p.ads ? 3.8 : p.crouch ? 3.2 : sprint ? 8.4 : 6.3;
     if (p.knocked) { p.ads = false; this.updateInteract(p, dt); this.consumeAll(); return; }
@@ -669,24 +677,67 @@ const Game = {
     const it = p.item;
     if (firing && it) {
       if (it.kind === 'weapon') {
-        if (W.auto || I.consume('fire') || I.consume('fireL') || (Settings.autoFire && this.aimTarget && !W.grapple)) {
-          const minT = this.camMinT || 0;
-          this._o = this._o || new THREE.Vector3(); this._o.copy(this.camPos).addScaledVector(this.camDir, minT);
-          if (canFire(p)) { playerShoot(p, this._o, this.camDir, 0); p.emoteT = 0; }
+        if (arc || W.auto || I.consume('fire') || I.consume('fireL') || (Settings.autoFire && this.aimTarget && !W.grapple)) {
+          const [o, d] = this.shootRay();
+          if (canFire(p)) { playerShoot(p, o, d, 0); p.emoteT = 0; this.tapShot = false; }
         }
-      } else if (it.kind === 'cons') { if (I.consume('fire') || I.consume('fireL') || CONS[it.c].throw === undefined) this.useItem(p); }
+      } else if (it.kind === 'cons') { if (arc ? (CONS[it.c].throw ? this.arcRelease : true) : (I.consume('fire') || I.consume('fireL') || CONS[it.c].throw === undefined)) this.useItem(p); }
     }
     // rafale : les tirs suivants partent tout seuls
-    if (p.burstLeft > 0 && p.fireT <= 0 && p.weapon && WEAPONS[p.weapon.w].burst) { this._o = this._o || new THREE.Vector3(); this._o.copy(this.camPos).addScaledVector(this.camDir, this.camMinT || 0); if (canFire(p)) playerShoot(p, this._o, this.camDir, 0); else p.burstLeft = 0; }
+    if (p.burstLeft > 0 && p.fireT <= 0 && p.weapon && WEAPONS[p.weapon.w].burst) { const [o, d] = this.shootRay(); if (canFire(p)) playerShoot(p, o, d, 0); else p.burstLeft = 0; }
+    this.arcRelease = false;
     if (I.consume('gag') && p.gag) {
       const t = World.ray(this.camPos.x, this.camPos.y, this.camPos.z, this.camDir.x, this.camDir.y, this.camDir.z, 70);
-      const tgt = this.aimTarget ? this.aimTarget.pos.clone() : this.camPos.clone().addScaledVector(this.camDir, Math.min(t, 70));
-      if (t >= 70 && !this.aimTarget && (p.gag.g === 'piano' || p.gag.g === 'anvil')) HUD.message('Vise le sol à moins de 70 m', 1.2); else Gags.use(p, tgt);
+      const tgt = this.aimTarget ? this.aimTarget.pos.clone() : arc ? this.arcAimPoint.clone() : this.camPos.clone().addScaledVector(this.camDir, Math.min(t, 70));
+      if (!arc && t >= 70 && !this.aimTarget && (p.gag.g === 'piano' || p.gag.g === 'anvil')) HUD.message('Vise le sol à moins de 70 m', 1.2); else Gags.use(p, tgt);
     }
     I.pressed.fire = false; I.pressed.fireL = false;
     // interactions
     this.updateInteract(p, dt);
     I.pressed.glide = false; I.pressed.jumpBus = false;
+  },
+  shootRay() {
+    if (View.arcade()) return [this.shootO, this.shootDir];
+    this._o = this._o || new THREE.Vector3(); this._o.copy(this.camPos).addScaledVector(this.camDir, this.camMinT || 0); return [this._o, this.camDir];
+  },
+  // vue arcade : visée au joystick droit (ou à la souris), verrouillage automatique de la cible dans le cône
+  arcadeAim(p, mvx, mvz, W) {
+    const I = Input; let ax = 0, az = 0, active = false;
+    if (I.isTouch) { if (I.aimMag > 0.12) { ax = I.ax; az = -I.ay; active = true; } }
+    else if (I.mouseIn) {
+      const c = this.camera; const v = _v1.set(I.mx / View.w * 2 - 1, -(I.my / View.h) * 2 + 1, 0.5).unproject(c).sub(c.position).normalize();
+      const t = (p.pos.y + 1.2 - c.position.y) / (v.y || -1e-3); if (t > 0) { ax = c.position.x + v.x * t - p.pos.x; az = c.position.z + v.z * t - p.pos.z; active = true; }
+    }
+    if (this.wasAiming && !I.aiming && I.isTouch) this.arcRelease = true; // relâcher le joystick lance l'objet
+    this.wasAiming = I.aiming;
+    const tap = I.tapFire; I.tapFire = false; if (tap) { this.tapShot = true; this.tapT = 0.35; }
+    if (this.tapT > 0) this.tapT -= 1 / 60; else this.tapShot = false;
+    let yaw = p.yaw;
+    if (active && Math.hypot(ax, az) > 0.01) yaw = Math.atan2(-ax, -az);
+    else if (Math.hypot(mvx, mvz) > 0.1) yaw = Math.atan2(-mvx, -mvz);
+    // cible automatique
+    const range = W ? Math.min(W.range, W.scope ? 90 : 55) : 40; let tgt = null, bs = Infinity;
+    const cone = this.tapShot ? Math.PI : active ? 0.38 : 0;
+    if (cone > 0) for (const f of this.fighters) {
+      if (!f.alive || f === p || f.team === p.team || f.state === 'bus' || (f.boxT > 0 && f.moveAmt < 0.2)) continue;
+      const dx = f.pos.x - p.pos.x, dz = f.pos.z - p.pos.z, d = Math.hypot(dx, dz); if (d > range) continue;
+      const da = Math.abs(angDiff(yaw, Math.atan2(-dx, -dz))); if (da > cone) continue;
+      const sc = d * (1 + da * 3); if (sc >= bs) continue;
+      if (!World.los(_v2.set(p.pos.x, p.pos.y + 1.4, p.pos.z), _v3.set(f.pos.x, f.pos.y + 1.2, f.pos.z))) continue;
+      bs = sc; tgt = f;
+    }
+    if (tgt && (this.tapShot || active)) yaw = Math.atan2(-(tgt.pos.x - p.pos.x), -(tgt.pos.z - p.pos.z));
+    p.yaw = yaw; this.aimTarget = tgt;
+    const o = this.shootO = this.shootO || new THREE.Vector3(); o.set(p.pos.x, p.pos.y + (p.crouch ? 1.0 : 1.35), p.pos.z);
+    const d = this.shootDir = this.shootDir || new THREE.Vector3();
+    if (tgt) d.set(tgt.pos.x - o.x, tgt.pos.y + (tgt.knocked ? 0.4 : 1.15) - o.y, tgt.pos.z - o.z).normalize();
+    else d.set(-Math.sin(yaw), -0.02, -Math.cos(yaw)).normalize();
+    p.pitch = Math.asin(clamp(d.y, -1, 1));
+    const len = tgt ? Math.hypot(tgt.pos.x - p.pos.x, tgt.pos.z - p.pos.z) : W && !W.grapple ? Math.min(range, 30) : 12;
+    this.arcAimPoint = (this.arcAimPoint || new THREE.Vector3()).set(p.pos.x - Math.sin(yaw) * len, p.pos.y, p.pos.z - Math.cos(yaw) * len);
+    this.arcFiring = (I.isTouch ? I.aiming : I.fire) || (this.tapShot && !!tgt);
+    const L = this.aimLine; L.visible = active || this.tapShot; L.position.set(p.pos.x, World.ground(p.pos.x, p.pos.z, p.pos.y) + 0.12, p.pos.z); L.rotation.y = yaw; L.scale.set(1, 1, len);
+    L.material.color.set(tgt ? '#ff4b5c' : '#ffffff'); L.material.opacity = this.arcFiring ? 0.75 : 0.45;
   },
   consumeAll() { for (const k in Input.pressed) if (k !== 'pause' && k !== 'map') Input.pressed[k] = false; },
   selectSlot(i) {
@@ -965,6 +1016,8 @@ const Game = {
       this.sun.position.set(p.pos.x + Look.sunOff.x, p.pos.y + Look.sunOff.y, p.pos.z + Look.sunOff.z); this.sun.target.position.copy(p.pos);
       return;
     }
+    if (View.arcade()) return this.arcadeCamera(v, dt);
+    Look.uniforms.cutOn.value = 0;
     if (v.state === 'bus' && this.busPos) { target = this.busPos.clone(); back = 22; side = 0; up = 4; }
     else {
       const crouch = v.knocked ? -1.0 : v.slideT > 0 ? -0.7 : v.crouch ? -0.45 : 0;
@@ -999,6 +1052,27 @@ const Game = {
     this.stormMix = lerp(this.stormMix || 0, v.inStorm && v.alive ? 1 : 0, 1 - Math.exp(-3 * dt));
     if (this.stormMix > 0.001 || this._stormFog) { this.scene.fog.color.copy(Look.fogBase).lerp(_v1c.set('#7b2ff7'), this.stormMix * 0.75); this.scene.fog.near = lerp(QUALITY[this.quality].fog * 0.3, 8, this.stormMix); this.scene.fog.far = lerp(QUALITY[this.quality].fog, 90, this.stormMix); this._stormFog = this.stormMix > 0.001; }
   },
+  arcadeCamera(v, dt) {
+    const cam = this.camera, p = this.player;
+    const air = v.state === 'fall' || v.state === 'glide', bus = v.state === 'bus' && this.busPos;
+    const T = bus ? this.busPos : v.pos;
+    let H = bus ? 48 : air ? 30 : v.kart ? 22 : 16, D = bus ? 30 : air ? 18 : v.kart ? 14 : 10.5;
+    if (v === p && p.ads) { H *= 1.55; D *= 1.55; }
+    H *= Settings.camZoom || 1; D *= Settings.camZoom || 1;
+    const want = _v1.set(T.x, T.y + H, T.z + D);
+    if (!this.arcCam || this.arcCam.distanceToSquared(want) > 400 * 400) this.arcCam = want.clone();
+    this.arcCam.lerp(want, 1 - Math.exp(-(bus ? 3 : 9) * dt));
+    cam.position.copy(this.arcCam);
+    if (this.shake > 0) { cam.position.x += (Math.random() - 0.5) * this.shake * 0.4; cam.position.z += (Math.random() - 0.5) * this.shake * 0.4; this.shake = Math.max(0, this.shake - dt * 2); }
+    const look = _v2.set(this.arcCam.x, this.arcCam.y - H + 0.8, this.arcCam.z - D);
+    cam.lookAt(look); if (Math.abs(cam.fov - 50) > 0.1) { cam.fov = lerp(cam.fov, 50, 0.2); cam.updateProjectionMatrix(); }
+    this.camPos.copy(cam.position); this.camDir.copy(look).sub(cam.position).normalize(); this.camMinT = 0;
+    World.roofMesh.visible = true; Look.uniforms.cutPos.value.copy(v.pos); Look.uniforms.cutOn.value = v.state === 'ground' && v.alive ? 1 : 0;
+    const so = Look.sunOff; this.sun.position.set(v.pos.x + so.x, v.pos.y + so.y, v.pos.z + so.z); this.sun.target.position.set(v.pos.x, v.pos.y, v.pos.z);
+    World.sky.position.set(cam.position.x, 0, cam.position.z);
+    this.stormMix = lerp(this.stormMix || 0, v.inStorm && v.alive ? 1 : 0, 1 - Math.exp(-3 * dt));
+    if (this.stormMix > 0.001 || this._stormFog) { this.scene.fog.color.copy(Look.fogBase).lerp(_v1c.set('#7b2ff7'), this.stormMix * 0.6); this.scene.fog.near = lerp(QUALITY[this.quality].fog * 0.3, 30, this.stormMix); this.scene.fog.far = lerp(QUALITY[this.quality].fog, 110, this.stormMix); this._stormFog = this.stormMix > 0.001; }
+  },
   render(dt) {
     this.updateCamera(dt);
     Look.update(this.paused ? 0 : dt, this.camPos);
@@ -1016,6 +1090,6 @@ const Game = {
   project(p) {
     const v = this._proj.copy(p).project(this.camera);
     if (v.z > 1) return null;
-    return { x: (v.x * 0.5 + 0.5) * window.innerWidth, y: (-v.y * 0.5 + 0.5) * window.innerHeight };
+    return { x: (v.x * 0.5 + 0.5) * View.w, y: (-v.y * 0.5 + 0.5) * View.h };
   },
 };

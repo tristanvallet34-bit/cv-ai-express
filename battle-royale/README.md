@@ -12,6 +12,13 @@ cd battle-royale && python3 -m http.server 8000
 Sur téléphone : menu du navigateur → « Ajouter à l'écran d'accueil » pour l'avoir comme une appli plein écran.
 Fonctionne aussi tel quel sur GitHub Pages.
 
+## Nouveautés v4 — vue arcade et paysage intégral
+- **Vue arcade** (par défaut) : caméra de dessus qui suit le joueur, **double joystick** — gauche pour bouger, droit pour viser et tirer en continu (une touche brève = tir rapide sur l'ennemi le plus proche). Visée automatique dans le cône du joystick, ligne de visée au sol, recul de caméra au sniper.
+- **Découpe des bâtiments** : toits, étages et feuillages s'effacent autour du joueur pour voir à l'intérieur ; silhouette du joueur et des coéquipiers visible à travers les murs.
+- **Paysage intégral** : téléphone tenu droit, toute l'appli (menus compris) est tournée pour rester en paysage.
+- **Express** : 32 joueurs, zone de départ réduite, parties d'environ 4 minutes.
+- La vue « Action » en 3e personne reste disponible dans Réglages › Vue de jeu.
+
 ## Nouveautés v3 — les 7 sprints
 1. **Sensations** : musique dynamique qui monte avec l'action, annonceur (Doublé, Triplé, Top 10…) avec voix, pings (ennemi, objet, « on va là ») suivis par les coéquipiers IA, vibrations par événement, micro-pause à l'élimination, recul et rechargement visibles.
 2. **Gags** : piano tombant, peau de banane, maillet géant, enclume, trou portable, ballon, boîte en carton. Nouvelles armes : arbalète, fusil rafale, grappin. Bombe rebondissante, fumigène, bulle bouclier. Caisses destructibles.
@@ -75,6 +82,7 @@ Fonctionne aussi tel quel sur GitHub Pages.
 ## Structure
 ```
 index.html, style.css
+js/view.js     paysage intégral (rotation de l'appli)
 js/util.js     bruit, RNG, géométrie fusionnée, audio synthétisé
 js/render.js   cel-shading, contours, ciel, océan, herbe, tempête, ambiances
 js/post.js     bloom, étalonnage, vignette, FXAA

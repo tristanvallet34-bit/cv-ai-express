@@ -210,9 +210,9 @@ const World = {
     }
     this.buildCrates(scene);
     const bm = new THREE.Mesh(gb.build(), Look.mat({ vertexColors: true }));
-    bm.castShadow = true; bm.receiveShadow = true; scene.add(bm); this.bldMesh = bm;
+    bm.castShadow = true; bm.receiveShadow = true; scene.add(bm); this.bldMesh = bm; Look.cutaway(bm.material);
     const rm = new THREE.Mesh(rb.build(), Look.mat({ vertexColors: true }));
-    rm.castShadow = true; scene.add(rm); this.roofMesh = rm;
+    rm.castShadow = true; scene.add(rm); this.roofMesh = rm; Look.cutaway(rm.material);
     this.outl = { bld: [], tree: [] };
     if (Look.toon) { this.outl.bld.push(Look.addOutline(bm, 0.055), Look.addOutline(rm, 0.07)); }
 
@@ -549,7 +549,7 @@ const World = {
       bushes.push({ x, y: h, z, s: 0.7 + R() * 0.7 });
     }
     const mk = (geo, list, colorFn, setup, sway, ol) => {
-      const mat = Look.mat({}); if (sway) Look.sway(mat, sway);
+      const mat = Look.mat({}); if (sway) Look.sway(mat, sway); Look.cutaway(mat);
       const m = new THREE.InstancedMesh(geo, mat, list.length);
       const dummy = new THREE.Object3D(); const col = new THREE.Color();
       list.forEach((t, i) => { setup(dummy, t); dummy.updateMatrix(); m.setMatrixAt(i, dummy.matrix); m.setColorAt(i, colorFn(t, col)); });

@@ -111,7 +111,7 @@ const Nametags = {
     const mates = G.mode && G.mode.team > 1 ? G.mates(G.player).filter(m => m.alive) : [];
     const list = mates.filter(m => dist2(m.pos.x, m.pos.z, G.camPos.x, G.camPos.z) < 220 * 220).slice(0, 8);
     while (this.els.length < list.length) { const d = document.createElement('div'); d.className = 'ntag'; d.innerHTML = '<b></b><i><s></s></i>'; $('tagLayer').appendChild(d); this.els.push(d); }
-    const W = window.innerWidth, H = window.innerHeight;
+    const W = View.w, H = View.h;
     this.els.forEach((el, i) => {
       const m = list[i]; if (!m) { el.style.display = 'none'; return; }
       const v = _v1.set(m.pos.x, m.pos.y + 2.5 * (m.scale || 1), m.pos.z).project(G.camera);

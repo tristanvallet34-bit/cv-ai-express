@@ -21,9 +21,9 @@ const HUD = {
     }
     $('minimap').addEventListener('pointerdown', e => { e.stopPropagation(); this.toggleBig(true); });
     $('bigmap').addEventListener('pointerdown', e => {
-      e.stopPropagation(); const r = $('bigmapCv').getBoundingClientRect();
+      e.stopPropagation(); const r = View.rect($('bigmapCv')); const q = View.pt(e);
       if (e.target.id === 'bigmapCv') {
-        const x = ((e.clientX - r.left) / r.width - 0.5) * World.SIZE, z = ((e.clientY - r.top) / r.height - 0.5) * World.SIZE;
+        const x = ((q.x - r.left) / r.width - 0.5) * World.SIZE, z = ((q.y - r.top) / r.height - 0.5) * World.SIZE;
         this.marker = this.marker && Math.hypot(this.marker.x - x, this.marker.z - z) < 20 ? null : { x, z }; Sfx.click(); this.drawBig();
       } else this.toggleBig(false);
     });
@@ -172,7 +172,7 @@ const HUD = {
     if (this.marker) { const [x, y] = this.w2m(this.marker.x, this.marker.z, cx, cz, scale, S); ctx.fillStyle = '#ffcf3f'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 6, y - 12); ctx.lineTo(x + 6, y - 12); ctx.fill(); }
     ctx.restore();
     // joueur (flèche)
-    ctx.save(); ctx.translate(S / 2, S / 2); ctx.rotate(-G.camYaw);
+    ctx.save(); ctx.translate(S / 2, S / 2); ctx.rotate(-(View.arcade() ? (G.spectating || G.player).yaw : G.camYaw));
     ctx.fillStyle = '#ffcf3f'; ctx.strokeStyle = '#2b1e5c'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(6, 7); ctx.lineTo(0, 3); ctx.lineTo(-6, 7); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
     ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(S / 2, S / 2, S / 2 - 2, 0, TAU); ctx.stroke();
@@ -204,7 +204,7 @@ const HUD = {
     if (World.vault && !World.vault.open) icon(World.vault.cx, World.vault.cz, 'V', '#5a6378');
     if (Events.boss && Events.boss.alive) icon(Events.boss.pos.x, Events.boss.pos.z, '♛', '#1a1a2e');
     const p = G.spectating || G.player; const [px, py] = this.w2m(p.pos.x, p.pos.z, 0, 0, sc, S);
-    ctx.save(); ctx.translate(px, py); ctx.rotate(-G.camYaw); ctx.fillStyle = '#ffcf3f'; ctx.strokeStyle = '#2b1e5c'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(8, 9); ctx.lineTo(0, 4); ctx.lineTo(-8, 9); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.translate(px, py); ctx.rotate(-(View.arcade() ? (G.spectating || G.player).yaw : G.camYaw)); ctx.fillStyle = '#ffcf3f'; ctx.strokeStyle = '#2b1e5c'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(8, 9); ctx.lineTo(0, 4); ctx.lineTo(-8, 9); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
     if (this.marker) { const [x, y] = this.w2m(this.marker.x, this.marker.z, 0, 0, sc, S); ctx.fillStyle = '#ffcf3f'; ctx.strokeStyle = '#2b1e5c'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 8, y - 16); ctx.lineTo(x + 8, y - 16); ctx.closePath(); ctx.fill(); ctx.stroke(); }
     for (const mate of G.mates(G.player)) if (mate.alive) { const [x, y] = this.w2m(mate.pos.x, mate.pos.z, 0, 0, sc, S); ctx.fillStyle = '#2ee6c8'; ctx.beginPath(); ctx.arc(x, y, 6, 0, TAU); ctx.fill(); }
   },
@@ -249,7 +249,7 @@ function weaponIcon(w) {
 const Confetti = {
   start() {
     const cv = $('confetti'); cv.hidden = false; const ctx = cv.getContext('2d');
-    const W = cv.width = window.innerWidth, H = cv.height = window.innerHeight; const cs = ['#ff4f8b', '#ffcf3f', '#2ee6c8', '#3ea8ff', '#bd63ff', '#ffffff'];
+    const W = cv.width = View.w, H = cv.height = View.h; const cs = ['#ff4f8b', '#ffcf3f', '#2ee6c8', '#3ea8ff', '#bd63ff', '#ffffff'];
     const P = []; for (let i = 0; i < 180; i++) P.push({ x: Math.random() * W, y: -Math.random() * H * 0.8, vx: (Math.random() - 0.5) * 60, vy: 120 + Math.random() * 160, r: Math.random() * 6, vr: (Math.random() - 0.5) * 8, w: 6 + Math.random() * 6, h: 4 + Math.random() * 6, c: cs[i % cs.length] });
     let last = performance.now(), t = 0;
     const step = now => {
