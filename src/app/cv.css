@@ -194,3 +194,31 @@
 .cv-l-classic .cv-name, .cv-l-sidebar-right .cv-name { color: var(--accent); }
 .cv-banner .cv-name { color: #fff; }
 .cv-side .cv-heading span { line-height: 1.25; }
+
+/* Nouveaux modèles */
+.cv-dark.cv-t-minuit { --side-bg: #0f172a; }
+.cv-t-minuit .cv-main .cv-last { color: #0f172a; }
+.cv-t-minuit .cv-side .cv-heading { color: var(--accent) !important; }
+.cv-t-pastel { background: color-mix(in srgb, var(--accent) 9%, #fff); }
+.cv-t-pastel .cv-side { border-top-color: color-mix(in srgb, var(--accent) 55%, #fff); }
+.cv-t-berlin .cv-last { color: #111 !important; }
+.cv-t-berlin .cv-header { border-bottom-width: 2.4mm; }
+.cv-t-berlin .cv-title { color: #555; letter-spacing: .12em; text-transform: uppercase; font-size: calc(9.5pt * var(--fs)); }
+.cv-t-riviera .cv-banner { background: linear-gradient(120deg, var(--accent), #0369a1); }
+.cv-t-academique .cv-name { font-weight: 500; }
+.cv-t-startup .cv-side { border-left: 0; background: color-mix(in srgb, var(--accent) 10%, #fff); }
+.cv-t-startup .cv-name { color: var(--accent); }
+.cv-t-boreal .cv-header { background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 12%, #fff), #fff); }
+.cv-t-monochrome .cv-header { border-bottom: 0.3mm solid #111; }
+.cv-t-monochrome .cv-name { color: #111 !important; letter-spacing: .02em; }
+.cv-t-monochrome .cv-bullets li::before { background: #111; }
+
+/* PDF sur plusieurs pages : la marge haute est répétée en haut de chaque page */
+@media print {
+  .cv-main, .cv-side, .cv-l-classic, .cv-l-timeline, .cv-l-minimal, .cv-l-executive, .cv-l-ats, .cv-l-split, .cv-l-card, .letter .lt-main {
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .cv-section { break-inside: auto; }
+  .cv-heading { break-after: avoid; }
+}

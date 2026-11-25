@@ -5,8 +5,11 @@ import { exampleCV, demoCV } from "@/lib/cv/examples";
 import { PLANS, formatPrice } from "@/lib/plans";
 
 const FEATURES = [
-  { ico: "🎨", t: "22 modèles professionnels", d: "Moderne, classique, créatif ou optimisé ATS : des designs conçus avec des recruteurs, personnalisables en couleurs et polices." },
+  { ico: "🎨", t: "30 modèles professionnels", d: "Moderne, classique, créatif ou optimisé ATS : des designs pensés pour une lecture rapide, personnalisables en couleurs et polices." },
   { ico: "✨", t: "Assistant IA intégré", d: "Générez votre profil, reformulez vos missions avec des verbes d'action et obtenez des compétences adaptées à votre métier." },
+  { ico: "📥", t: "Import de votre ancien CV", d: "Importez un PDF ou votre profil LinkedIn : l'IA remplit toutes les rubriques en quelques secondes." },
+  { ico: "🎯", t: "CV adapté à chaque offre", d: "Collez une annonce : l'IA réécrit profil, compétences et missions pour coller au poste, sans rien inventer." },
+  { ico: "🌍", t: "Traduction en anglais", d: "Votre CV traduit en anglais professionnel en un clic, pour postuler à l'international." },
   { ico: "✉️", t: "Lettre de motivation", d: "L'IA rédige une lettre personnalisée à partir de votre CV et de l'offre, dans un design assorti." },
   { ico: "🎯", t: "Score ATS", d: "Comparez votre CV à une offre d'emploi : score, mots-clés manquants et conseils concrets pour passer les filtres." },
   { ico: "⚡", t: "Aperçu en temps réel", d: "Chaque modification s'affiche instantanément. Indicateur de saut de page pour tenir sur une page." },
@@ -29,8 +32,18 @@ export default function Home() {
   const mk = exampleCV("chef-de-projet-marketing")!;
   const featured = ["horizon", "aurora", "capital", "chrono", "eclat", "tokyo", "sauge", "ats-pro"];
   const monthly = PLANS.find((p) => p.id === "monthly")!;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "CV Express",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    description: "Créateur de CV en ligne avec assistant IA, 30 modèles, lettre de motivation et analyse ATS.",
+    offers: [{ "@type": "Offer", price: "0", priceCurrency: "EUR", name: "Gratuit" }, ...PLANS.map((p) => ({ "@type": "Offer", price: (p.price / 100).toFixed(2), priceCurrency: "EUR", name: p.name }))],
+  };
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <section className="hero">
         <div className="container hero-grid">
           <div>
@@ -41,7 +54,7 @@ export default function Home() {
             <p className="lead">Choisissez un modèle, laissez l&apos;IA vous aider à rédiger, et téléchargez un CV professionnel en PDF. Lettre de motivation et analyse ATS incluses.</p>
             <div className="hero-cta">
               <Link href="/editeur" className="btn btn-primary btn-lg">Créer mon CV gratuitement →</Link>
-              <Link href="/modeles" className="btn btn-outline btn-lg">Voir les 22 modèles</Link>
+              <Link href="/modeles" className="btn btn-outline btn-lg">Voir les 30 modèles</Link>
             </div>
             <ul className="hero-points">
               <li>Sans carte bancaire</li>
@@ -67,7 +80,7 @@ export default function Home() {
           </div>
           <div className="grid grid-3">
             {[
-              ["Choisissez un modèle", "Parmi 22 designs professionnels, adaptés à tous les métiers et niveaux d'expérience."],
+              ["Choisissez un modèle", "Parmi 30 designs professionnels, adaptés à tous les métiers et niveaux d'expérience."],
               ["Remplissez avec l'IA", "Saisissez vos infos : l'assistant rédige votre profil et reformule vos missions."],
               ["Téléchargez et postulez", "Exportez en PDF, générez la lettre assortie et vérifiez votre score ATS."],
             ].map(([t, d], i) => (

@@ -15,7 +15,7 @@ export function Field({ label, value, onChange, placeholder, type = "text", text
     <div className="field">
       <label>{label}</label>
       {textarea ? (
-        <textarea className="textarea" rows={rows} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+        <textarea className="textarea" rows={rows} value={value} placeholder={placeholder} spellCheck lang="fr" onChange={(e) => onChange(e.target.value)} />
       ) : (
         <input className="input" type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
       )}

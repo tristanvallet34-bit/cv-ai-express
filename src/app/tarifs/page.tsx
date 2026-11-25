@@ -2,18 +2,21 @@ import type { Metadata } from "next";
 import Pricing from "./Pricing";
 
 export const metadata: Metadata = {
-  title: "Tarifs — Premium dès 4,99 €/mois",
+  title: "Tarifs — Premium dès 2,49 €/mois",
   description: "CV Express gratuit ou Premium : tous les modèles, IA illimitée, PDF sans filigrane, lettres de motivation et analyse ATS. Résiliable en 1 clic.",
 };
 
 const ROWS: [string, string, string][] = [
   ["Création et édition de CV", "✓", "✓"],
-  ["Modèles de CV", "4 modèles", "22 modèles"],
+  ["Modèles de CV", "4 modèles", "30 modèles"],
   ["Modèles de lettres", "2 modèles", "6 modèles"],
   ["Téléchargement PDF", "Avec mention", "Sans mention, illimité"],
   ["CV sauvegardés", "1", "Illimité"],
   ["Lettres sauvegardées", "1", "Illimité"],
   ["Assistant IA", "5 / jour", "Illimité*"],
+  ["Import d'un CV existant / LinkedIn (PDF)", "✓", "✓"],
+  ["Adapter le CV à une offre (IA)", "—", "✓"],
+  ["Traduction du CV en anglais (IA)", "—", "✓"],
   ["Analyse ATS de base", "✓", "✓"],
   ["Analyse ATS approfondie face à une offre", "—", "✓"],
   ["Préparation d'entretien IA", "—", "✓"],

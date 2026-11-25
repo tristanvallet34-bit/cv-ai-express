@@ -58,6 +58,9 @@ export function AuthForm({ initial = "register", onDone }: { initial?: "login" |
         <label htmlFor="af-pass">Mot de passe</label>
         <input id="af-pass" className="input" type="password" required minLength={mode === "register" ? 8 : 1} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "register" ? "new-password" : "current-password"} placeholder={mode === "register" ? "8 caractères minimum" : ""} />
       </div>
+      {mode === "login" && (
+        <p style={{ marginTop: -6, marginBottom: 14, fontSize: ".85rem" }}><Link href="/mot-de-passe-oublie">Mot de passe oublié ?</Link></p>
+      )}
       {mode === "register" && (
         <label className="check" style={{ marginBottom: 16, fontSize: ".85rem" }}>
           <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} />
@@ -85,14 +88,28 @@ export function AuthModal({ onClose, onDone, initial }: { onClose: () => void; o
   );
 }
 
+export function ConsentBox({ checked, onChange, error }: { checked: boolean; onChange: (v: boolean) => void; error?: boolean }) {
+  return (
+    <label className="check" style={{ fontSize: ".82rem", alignItems: "flex-start", padding: 10, borderRadius: 10, background: error ? "#fef2f2" : "var(--bg-soft)", border: `1px solid ${error ? "#fecaca" : "var(--line)"}`, margin: "14px 0 4px" }}>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} style={{ marginTop: 3 }} />
+      <span>
+        J&apos;accepte les <Link href="/cgv" target="_blank">CGV</Link> et demande l&apos;accès immédiat à Premium. Je reconnais perdre mon droit de rétractation pour ce contenu numérique. Les abonnements sont résiliables à tout moment.
+      </span>
+    </label>
+  );
+}
+
 export function UpsellModal({ onClose, reason }: { onClose: () => void; reason?: string }) {
   const [loading, setLoading] = useState("");
   const [err, setErr] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [consentErr, setConsentErr] = useState(false);
   async function buy(plan: string) {
+    if (!consent) return setConsentErr(true);
     setLoading(plan);
     setErr("");
     try {
-      await startCheckout(plan);
+      await startCheckout(plan, true);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Erreur");
       setLoading("");
@@ -109,6 +126,7 @@ export function UpsellModal({ onClose, reason }: { onClose: () => void; reason?:
         ))}
       </ul>
       {err && <div className="alert alert-error">{err}</div>}
+      <ConsentBox checked={consent} onChange={(v) => { setConsent(v); setConsentErr(false); }} error={consentErr} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10, marginTop: 18 }}>
         {PLANS.map((p) => (
           <button key={p.id} className={`btn ${p.highlight ? "btn-primary" : "btn-outline"}`} style={{ flexDirection: "column", padding: "14px 10px", gap: 2, whiteSpace: "normal" }} onClick={() => buy(p.id)} disabled={!!loading}>

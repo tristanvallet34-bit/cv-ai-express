@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE } from "@/lib/config";
+import ContactForm from "./ContactForm";
 
 export const metadata: Metadata = { title: "Contact" };
 
@@ -9,6 +10,12 @@ export default function Page() {
     <>
       <div className="page-head"><div className="container"><h1>Contact</h1><p>Une question, un problème de paiement, une suggestion ? Nous répondons sous 24 h ouvrées.</p></div></div>
       <section className="section">
+        <div className="container narrow">
+          <div className="card" style={{ marginBottom: 24 }}>
+            <h3>Écrivez-nous</h3>
+            <ContactForm />
+          </div>
+        </div>
         <div className="container narrow grid grid-2">
           <div className="card">
             <h3>✉️ Par email</h3>

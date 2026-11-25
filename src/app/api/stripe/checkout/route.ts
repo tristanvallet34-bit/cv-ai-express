@@ -11,15 +11,16 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const plan = getPlan(body.plan);
   if (!plan) return error("Offre inconnue");
+  if (body.consent !== true) return error("Veuillez accepter les CGV et l'accès immédiat au service.", 400, { consent: true });
   if (plan.mode === "subscription" && user.subscriptionStatus === "active") {
     return error("Vous avez déjà un abonnement actif. Gérez-le depuis votre espace.", 409);
   }
 
   const origin = req.headers.get("origin") || SITE.url;
-  const stripe = getStripe();
+  const stripe = await getStripe();
 
   if (!stripe) {
-    if (!demoMode()) return error("Paiement indisponible : Stripe n'est pas configuré.", 503);
+    if (!(await demoMode())) return error("Paiement indisponible : Stripe n'est pas configuré.", 503);
     // Mode démo (développement) : active Premium sans paiement
     const until = new Date(Date.now() + (plan.days || 30) * 86400000);
     await prisma.user.update({
@@ -57,17 +58,14 @@ export async function POST(req: Request) {
         },
       },
     ],
-    metadata: { userId: user.id, plan: plan.id },
+    metadata: { userId: user.id, plan: plan.id, consent: new Date().toISOString() },
     ...(plan.mode === "subscription"
       ? { subscription_data: { metadata: { userId: user.id, plan: plan.id } } }
       : { payment_intent_data: { metadata: { userId: user.id, plan: plan.id } } }),
     success_url: `${origin}/compte?success=1&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/tarifs?canceled=1`,
-    consent_collection: { terms_of_service: "required" },
     custom_text: {
-      terms_of_service_acceptance: {
-        message: `J'accepte les [CGV](${origin}/cgv) et demande l'accès immédiat au service, renonçant ainsi à mon droit de rétractation pour ce contenu numérique.`,
-      },
+      submit: { message: "Accès Premium immédiat. Abonnement résiliable à tout moment en 1 clic depuis votre espace." },
     },
   });
 

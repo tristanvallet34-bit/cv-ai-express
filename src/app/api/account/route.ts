@@ -24,7 +24,7 @@ export async function PATCH(req: Request) {
 export async function DELETE() {
   const user = await getCurrentUser();
   if (!user) return error("Non connecté", 401);
-  const stripe = getStripe();
+  const stripe = await getStripe();
   if (stripe && user.subscriptionId && user.subscriptionStatus !== "canceled") {
     try {
       await stripe.subscriptions.cancel(user.subscriptionId);

@@ -5,6 +5,9 @@ import { json, error } from "@/lib/http";
 
 const s = (v: unknown, max = 20000) => String(v ?? "").slice(0, max);
 
+export const maxDuration = 90;
+const PREMIUM_ONLY = ["analyze-deep", "interview", "tailor", "translate"];
+
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return error("Créez un compte gratuit pour utiliser l'assistant IA.", 401, { login: true });
@@ -12,7 +15,7 @@ export async function POST(req: Request) {
   const action = String(body.action || "");
 
   // Fonctions réservées Premium
-  if ((action === "analyze-deep" || action === "interview") && !isPremium(user)) {
+  if (PREMIUM_ONLY.includes(action) && !isPremium(user)) {
     return error("Cette fonctionnalité est réservée aux membres Premium.", 402, { upgrade: true });
   }
 
@@ -48,6 +51,24 @@ export async function POST(req: Request) {
       break;
     case "interview":
       result = await ai.interviewPrep(s(body.role, 200), s(body.profile, 8000), s(body.offer, 6000));
+      break;
+    case "import": {
+      const pdf = typeof body.pdf === "string" ? body.pdf : "";
+      if (pdf && pdf.length > 6_000_000) return error("PDF trop volumineux (4 Mo maximum).", 413);
+      if (pdf && !ai.aiEnabled()) return error("L'import de PDF nécessite l'IA (clé ANTHROPIC_API_KEY non configurée). Collez plutôt le texte de votre CV.", 503);
+      result = await ai.importCV(pdf ? { pdfBase64: pdf } : { text: s(body.text, 30000) });
+      if (!result) return error("Impossible de lire ce CV. Essayez de coller son texte.", 422);
+      break;
+    }
+    case "tailor":
+      if (!ai.aiEnabled()) return error("Fonction indisponible : l'IA n'est pas configurée.", 503);
+      result = await ai.tailorCV(body.cv, s(body.offer, 10000));
+      if (!result) return error("L'adaptation a échoué, réessayez.", 502);
+      break;
+    case "translate":
+      if (!ai.aiEnabled()) return error("Fonction indisponible : l'IA n'est pas configurée.", 503);
+      result = await ai.translateCV(body.cv, body.lang === "fr" ? "fr" : "en");
+      if (!result) return error("La traduction a échoué, réessayez.", 502);
       break;
     default:
       return error("Action inconnue");

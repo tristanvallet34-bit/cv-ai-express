@@ -10,7 +10,9 @@ import { api, ApiError, useMe, resizePhoto, download } from "@/lib/client";
 import type { CVData, SectionKey } from "@/lib/cv/types";
 import { TEMPLATES, COLORS, FONTS, getTemplate } from "@/lib/cv/templates";
 import { SECTION_NAMES } from "@/lib/cv/labels";
-import { uid, normalizeCV, fullName, cvToText, fmtRange } from "@/lib/cv/utils";
+import { uid, normalizeCV, fullName, cvToText, fmtRange, fromImported } from "@/lib/cv/utils";
+import { cvQuality } from "@/lib/cv/score";
+import { ImportModal, TailorModal } from "./AiModals";
 
 const DRAFT_KEY = "cvx_draft_v1";
 const A4_W = 793.7;
@@ -41,7 +43,11 @@ export default function Editor({ initial, resumeId: initialId, title: initialTit
   const [openSec, setOpenSec] = useState<SectionKey | "personal" | null>("personal");
   const [openItem, setOpenItem] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "local" | "error">(initialId ? "saved" : "local");
-  const [modal, setModal] = useState<null | { type: "auth" } | { type: "upsell"; reason?: string }>(null);
+  const [modal, setModal] = useState<null | { type: "auth" } | { type: "upsell"; reason?: string } | { type: "import" } | { type: "tailor" }>(null);
+  const past = useRef<CVData[]>([]);
+  const future = useRef<CVData[]>([]);
+  const lastPush = useRef(0);
+  const [hist, setHist] = useState({ u: 0, r: 0 });
   const [toast, setToast] = useState("");
   const [aiBusy, setAiBusy] = useState("");
   const [skillSuggestions, setSkillSuggestions] = useState<string[]>([]);
@@ -77,8 +83,58 @@ export default function Editor({ initial, resumeId: initialId, title: initialTit
 
   const update = useCallback((fn: (d: CVData) => CVData) => {
     dirty.current = true;
-    setData((d) => fn(structuredClone(d)));
+    setData((d) => {
+      // Historique : regroupe les frappes rapprochées en une seule étape d'annulation
+      const now = Date.now();
+      if (now - lastPush.current > 700) {
+        past.current = [...past.current.slice(-60), d];
+        future.current = [];
+        setHist({ u: past.current.length, r: 0 });
+      }
+      lastPush.current = now;
+      return fn(structuredClone(d));
+    });
   }, []);
+
+  const replaceAll = useCallback((next: CVData) => {
+    lastPush.current = 0;
+    update(() => next);
+  }, [update]);
+
+  const undo = useCallback(() => {
+    const prev = past.current.pop();
+    if (!prev) return;
+    dirty.current = true;
+    setData((d) => {
+      future.current = [...future.current, d];
+      return prev;
+    });
+    lastPush.current = 0;
+    setHist({ u: past.current.length, r: future.current.length + 1 });
+  }, []);
+  const redo = useCallback(() => {
+    const nxt = future.current.pop();
+    if (!nxt) return;
+    dirty.current = true;
+    setData((d) => {
+      past.current = [...past.current, d];
+      return nxt;
+    });
+    lastPush.current = 0;
+    setHist({ u: past.current.length + 1, r: future.current.length });
+  }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "z") return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT")) return; // annulation native dans les champs
+      e.preventDefault();
+      if (e.shiftKey) redo();
+      else undo();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo]);
 
   // Sauvegarde automatique
   useEffect(() => {
@@ -197,6 +253,24 @@ export default function Editor({ initial, resumeId: initialId, title: initialTit
     } catch (e) {
       notify(e instanceof Error ? e.message : "Erreur");
     }
+  }
+
+  async function translate() {
+    setMenu(false);
+    if (!user) return setModal({ type: "auth" });
+    if (!premium) return setModal({ type: "upsell", reason: "La traduction automatique du CV est incluse dans Premium." });
+    const to = data.settings.lang === "en" ? "fr" : "en";
+    notify(to === "en" ? "Traduction en anglais en cours…" : "Traduction en français en cours…");
+    const { personal, settings, ...rest } = data;
+    void settings;
+    const r = await ai<Record<string, unknown>>("translate", { action: "translate", lang: to, cv: { ...rest, personal: { ...personal, photo: "" } } });
+    if (!r) return;
+    const next = fromImported(r, data);
+    next.personal.photo = data.personal.photo;
+    next.settings = { ...data.settings, lang: to };
+    replaceAll(next);
+    setTitle((t) => (to === "en" ? `${t} (EN)` : t.replace(/ \(EN\)$/, "")));
+    notify("CV traduit ✓ (↶ pour annuler)");
   }
 
   function importJson() {
@@ -497,6 +571,8 @@ export default function Editor({ initial, resumeId: initialId, title: initialTit
         <Link href={user ? "/compte" : "/"} className="logo" title="Retour"><span className="logo-mark">CV</span></Link>
         <input className="ed-title" value={title} onChange={(e) => { dirty.current = true; setTitle(e.target.value); }} aria-label="Nom du CV" />
         <span className="ed-status ed-hide-sm">{statusLabel}</span>
+        <button className="ed-icon" title="Annuler (Ctrl+Z)" onClick={undo} disabled={!hist.u} style={{ opacity: hist.u ? 1 : 0.35 }}>↶</button>
+        <button className="ed-icon" title="Rétablir (Ctrl+Maj+Z)" onClick={redo} disabled={!hist.r} style={{ opacity: hist.r ? 1 : 0.35 }}>↷</button>
         <div className="ed-spacer" />
         <button className="btn btn-outline btn-sm ed-mobile-toggle" onClick={() => setShowPreview(!showPreview)}>{showPreview ? "✎ Éditer" : "👁 Aperçu"}</button>
         {!premium && <Link href="/tarifs" className="btn btn-gold btn-sm ed-hide-sm">★ Premium</Link>}
@@ -504,6 +580,10 @@ export default function Editor({ initial, resumeId: initialId, title: initialTit
           <button className="btn btn-outline btn-sm" onClick={() => setMenu(!menu)}>⋯</button>
           {menu && (
             <div className="ed-menu" onMouseLeave={() => setMenu(false)}>
+              <button onClick={() => { setMenu(false); setModal({ type: "import" }); }}>✨ Importer mon ancien CV / LinkedIn (PDF)</button>
+              <button onClick={() => { setMenu(false); if (!user) return setModal({ type: "auth" }); if (!premium) return setModal({ type: "upsell", reason: "L'adaptation automatique du CV à une offre est incluse dans Premium." }); setModal({ type: "tailor" }); }}>🎯 Adapter à une offre d&apos;emploi {!premium && "★"}</button>
+              <button onClick={translate}>🌍 {data.settings.lang === "en" ? "Traduire en français" : "Traduire en anglais"} {!premium && "★"}</button>
+              <hr style={{ border: 0, borderTop: "1px solid var(--line)", margin: "4px 0" }} />
               <button onClick={() => { setMenu(false); download(`${title}.txt`, cvToText(data)); }}>📄 Exporter en texte (.txt)</button>
               <button onClick={() => { setMenu(false); download(`${title}.json`, JSON.stringify(data, null, 2), "application/json"); }}>💾 Sauvegarde JSON</button>
               <button onClick={importJson}>📥 Importer un JSON</button>
@@ -527,6 +607,25 @@ export default function Editor({ initial, resumeId: initialId, title: initialTit
           <div className="ed-scroll">
             {tab === "content" ? (
               <>
+                {(() => {
+                  const q = cvQuality(data);
+                  const color = q.score >= 80 ? "#16a34a" : q.score >= 55 ? "#f59e0b" : "#ef4444";
+                  return (
+                    <div className="ed-quality">
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: ".85rem", fontWeight: 700, color: "var(--ink)" }}>
+                        <span>Qualité du CV</span><span style={{ color }}>{q.score} %</span>
+                      </div>
+                      <div className="ed-qbar"><span style={{ width: `${q.score}%`, background: color }} /></div>
+                      {q.tips[0] && <div className="muted" style={{ fontSize: ".8rem", marginTop: 6 }}>💡 {q.tips[0]}</div>}
+                    </div>
+                  );
+                })()}
+                {!data.personal.firstName && !data.experiences.length && (
+                  <button className="ed-import-banner" onClick={() => setModal({ type: "import" })}>
+                    <strong>✨ Vous avez déjà un CV ?</strong>
+                    <span>Importez-le (PDF ou profil LinkedIn) : l&apos;IA remplit tout en 30 secondes.</span>
+                  </button>
+                )}
                 {me?.ai && (
                   <div className="alert alert-info" style={{ fontSize: ".82rem", padding: "8px 12px" }}>
                     ✨ Assistant IA : {me.ai.remaining} génération{me.ai.remaining > 1 ? "s" : ""} restante{me.ai.remaining > 1 ? "s" : ""} aujourd&apos;hui{!premium && <> · <Link href="/tarifs">illimité avec Premium</Link></>}
@@ -650,6 +749,14 @@ export default function Editor({ initial, resumeId: initialId, title: initialTit
 
       {modal?.type === "auth" && <AuthModal onClose={() => setModal(null)} onDone={afterAuth} />}
       {modal?.type === "upsell" && <UpsellModal onClose={() => setModal(null)} reason={modal.reason} />}
+      {modal?.type === "import" && (
+        <ImportModal current={data} loggedIn={me ? !!user : true} onClose={() => setModal(null)} onAuth={() => setModal({ type: "auth" })} onUpsell={(reason) => setModal({ type: "upsell", reason })}
+          onImported={(d) => { replaceAll(d); setModal(null); refresh(); notify("CV importé ✓ Vérifiez les informations puis choisissez un modèle."); }} />
+      )}
+      {modal?.type === "tailor" && (
+        <TailorModal current={data} loggedIn={me ? !!user : true} onClose={() => setModal(null)} onAuth={() => setModal({ type: "auth" })} onUpsell={(reason) => setModal({ type: "upsell", reason })}
+          onApply={(d) => { replaceAll(d); setModal(null); refresh(); notify("CV adapté à l'offre ✓ (↶ pour annuler)"); }} />
+      )}
       {toast && <div className="toast no-print">{toast}</div>}
     </div>
   );

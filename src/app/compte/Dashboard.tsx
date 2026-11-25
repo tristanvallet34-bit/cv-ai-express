@@ -92,7 +92,7 @@ export default function Dashboard({ user, resumes, letters, ai, flash, demo }: {
           <div className="card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 24, background: "linear-gradient(100deg,#fffbeb,#fdf2f8)", borderColor: "#fde68a" }}>
             <div>
               <strong style={{ color: "var(--ink)" }}>Passez Premium et multipliez vos chances</strong>
-              <div className="muted" style={{ fontSize: ".92rem" }}>22 modèles, PDF sans mention, IA illimitée, analyse ATS approfondie et préparation d&apos;entretien.</div>
+              <div className="muted" style={{ fontSize: ".92rem" }}>30 modèles, PDF sans mention, IA illimitée, analyse ATS approfondie et préparation d&apos;entretien.</div>
             </div>
             <Link href="/tarifs" className="btn btn-gold">Voir les offres</Link>
           </div>

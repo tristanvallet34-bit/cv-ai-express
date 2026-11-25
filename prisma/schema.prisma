@@ -28,6 +28,7 @@ model User {
   letters            Letter[]
   aiUsages           AiUsage[]
   payments           Payment[]
+  resets             PasswordReset[]
 }
 
 model Resume {
@@ -78,4 +79,23 @@ model Payment {
   plan      String?
   createdAt DateTime @default(now())
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+// Réglages modifiables depuis /admin (ex. connexion Stripe). Les secrets sont chiffrés.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

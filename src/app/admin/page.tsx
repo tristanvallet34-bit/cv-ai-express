@@ -4,7 +4,8 @@ import { getCurrentUser, isAdmin, isPremium } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { PLANS, formatPrice, getPlan } from "@/lib/plans";
 import { aiEnabled } from "@/lib/ai";
-import { getStripe, demoMode } from "@/lib/stripe";
+import { stripeStatus, demoMode } from "@/lib/stripe";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "Administration", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -33,6 +34,8 @@ export default async function AdminPage() {
     prisma.payment.findMany({ orderBy: { createdAt: "desc" }, take: 15, include: { user: { select: { email: true } } } }),
     prisma.aiUsage.aggregate({ _sum: { count: true }, where: { day: { gte: d30.toISOString().slice(0, 10) } } }),
   ]);
+  const st = await stripeStatus();
+  const demo = await demoMode();
   const passes = await prisma.user.count({ where: { premiumUntil: { gt: now } } });
   const mrr = activeSubs.reduce((s, u) => s + monthlyValue(u.plan), 0);
   const byPlan = PLANS.map((p) => ({ p, n: activeSubs.filter((u) => u.plan === p.id).length }));
@@ -53,7 +56,8 @@ export default async function AdminPage() {
       <div className="container" style={{ padding: "40px 20px 70px" }}>
         <h1 style={{ fontSize: "2rem" }}>Tableau de bord</h1>
         <div className="alert alert-info" style={{ fontSize: ".88rem" }}>
-          Configuration — Stripe : {getStripe() ? "✅ connecté" : demoMode() ? "⚠ mode démo (aucun paiement réel)" : "❌ non configuré"} · Webhook : {process.env.STRIPE_WEBHOOK_SECRET ? "✅" : "❌"} · IA Claude : {aiEnabled() ? "✅" : "❌ (générateur local)"}
+          Stripe : {st.connected ? `✅ connecté (${st.mode === "live" ? "mode réel" : "mode test"})` : demo ? "⚠ mode démo (aucun paiement réel)" : "❌ non connecté"} · Webhook : {st.webhook === "ok" ? "✅" : "❌"} · IA Claude : {aiEnabled() ? "✅" : "❌ (générateur local)"} · Emails : {process.env.RESEND_API_KEY ? "✅" : "❌"}{" "}
+          <Link href="/admin/stripe" className="btn btn-primary btn-sm" style={{ marginLeft: 8 }}>{st.connected ? "Gérer Stripe" : "Connecter mon compte Stripe →"}</Link>
         </div>
         <div className="grid grid-4" style={{ marginBottom: 30 }}>
           {stats.map(([l, v, s]) => (

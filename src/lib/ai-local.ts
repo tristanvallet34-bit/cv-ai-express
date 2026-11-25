@@ -125,3 +125,15 @@ export function interview(role: string) {
     { question: "Avez-vous des questions ?", why: "Votre intérêt réel pour le poste.", tips: "Préparez 2 ou 3 questions : objectifs à 6 mois, organisation de l'équipe, prochaines étapes." },
   ];
 }
+
+export function importText(text: string) {
+  const lines = text.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  const email = text.match(/[\w.+-]+@[\w-]+\.[\w.]+/)?.[0] || "";
+  const phone = text.match(/(\+33\s?|0)[1-9](?:[\s.-]?\d{2}){4}/)?.[0] || "";
+  const linkedin = text.match(/linkedin\.com\/in\/[\w-]+/i)?.[0] || "";
+  const [firstName = "", ...rest] = (lines[0] || "").split(/\s+/);
+  return {
+    personal: { firstName, lastName: rest.join(" "), title: lines[1] || "", email, phone, linkedin },
+    summary: lines.slice(2).filter((l) => !/@|linkedin|(\+33|0)[1-9]([\s.-]?\d{2}){4}/i.test(l)).slice(0, 4).join(" ").slice(0, 600),
+  };
+}

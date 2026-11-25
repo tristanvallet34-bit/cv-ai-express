@@ -120,3 +120,39 @@ export function cvToText(d: CVData) {
   if (d.interests) out.push("", "CENTRES D'INTÉRÊT", d.interests);
   return out.join("\n");
 }
+
+// Convertit le JSON renvoyé par l'IA (import / traduction) en CV complet, en gardant le design actuel
+export function fromImported(raw: Record<string, unknown>, current: CVData): CVData {
+  const r = raw as Partial<CVData> & Record<string, unknown>;
+  const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+  const str = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : String(v));
+  const date = (v: unknown) => {
+    const t = str(v).trim();
+    return /^\d{4}-\d{2}$/.test(t) ? t : t;
+  };
+  const p = (r.personal || {}) as Partial<CVData["personal"]>;
+  return normalizeCV({
+    ...current,
+    personal: {
+      ...current.personal,
+      firstName: str(p.firstName),
+      lastName: str(p.lastName),
+      title: str(p.title),
+      email: str(p.email),
+      phone: str(p.phone),
+      city: str(p.city),
+      website: str(p.website),
+      linkedin: str(p.linkedin),
+      extra: str(p.extra),
+    },
+    summary: str(r.summary),
+    experiences: arr<Record<string, unknown>>(r.experiences).map((e) => ({ id: str(e.id) || uid(), role: str(e.role), company: str(e.company), city: str(e.city), start: date(e.start), end: date(e.end), current: !!e.current, description: str(e.description) })),
+    education: arr<Record<string, unknown>>(r.education).map((e) => ({ id: str(e.id) || uid(), degree: str(e.degree), school: str(e.school), city: str(e.city), start: date(e.start), end: date(e.end), description: str(e.description) })),
+    skills: arr<Record<string, unknown>>(r.skills).map((x) => ({ id: str(x.id) || uid(), name: typeof x === "string" ? x : str(x.name), level: Math.max(0, Math.min(5, Number(x.level) || 0)) })),
+    languages: arr<Record<string, unknown>>(r.languages).map((x) => ({ id: str(x.id) || uid(), name: str(x.name), level: str(x.level) })),
+    certifications: arr<Record<string, unknown>>(r.certifications).map((x) => ({ id: str(x.id) || uid(), name: str(x.name), issuer: str(x.issuer), date: str(x.date) })),
+    projects: arr<Record<string, unknown>>(r.projects).map((x) => ({ id: str(x.id) || uid(), name: str(x.name), description: str(x.description), link: str(x.link) })),
+    interests: str(r.interests),
+    custom: r.custom && typeof r.custom === "object" ? (r.custom as CVData["custom"]) : current.custom,
+  });
+}

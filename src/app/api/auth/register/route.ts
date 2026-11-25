@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { createSession, toPublicUser } from "@/lib/auth";
 import { json, error, rateLimit, clientIp } from "@/lib/http";
+import { sendEmail, emails } from "@/lib/email";
 
 const schema = z.object({
   email: z.string().trim().toLowerCase().email("Email invalide"),
@@ -21,5 +22,6 @@ export async function POST(req: Request) {
     data: { email, name: name || email.split("@")[0], passwordHash: await bcrypt.hash(password, 10) },
   });
   await createSession(user.id);
+  void sendEmail(user.email, "Bienvenue sur CV Express", emails.welcome(user.name || ""));
   return json({ user: toPublicUser(user) });
 }

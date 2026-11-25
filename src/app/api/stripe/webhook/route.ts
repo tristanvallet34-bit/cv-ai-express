@@ -1,7 +1,8 @@
 import type Stripe from "stripe";
 import { prisma } from "@/lib/db";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, webhookSecret } from "@/lib/stripe";
 import { getPlan } from "@/lib/plans";
+import { sendEmail, emails } from "@/lib/email";
 
 async function userFrom(meta: Stripe.Metadata | null | undefined, customer: string | Stripe.Customer | Stripe.DeletedCustomer | null) {
   if (meta?.userId) {
@@ -29,8 +30,8 @@ async function syncSubscription(sub: Stripe.Subscription) {
 }
 
 export async function POST(req: Request) {
-  const stripe = getStripe();
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const stripe = await getStripe();
+  const secret = await webhookSecret();
   if (!stripe || !secret) return new Response("Stripe non configuré", { status: 503 });
 
   const sig = req.headers.get("stripe-signature");
@@ -62,6 +63,7 @@ export async function POST(req: Request) {
             update: {},
           });
         }
+        if (plan) void sendEmail(user.email, "Votre accès Premium est activé", emails.premium(plan.name));
         if (s.mode === "subscription" && s.subscription) {
           const sub = await stripe.subscriptions.retrieve(typeof s.subscription === "string" ? s.subscription : s.subscription.id);
           await syncSubscription(sub);

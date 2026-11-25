@@ -87,7 +87,7 @@ export function download(filename: string, content: string, type = "text/plain;c
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export async function startCheckout(plan: string) {
-  const r = await api<{ url: string }>("/api/stripe/checkout", "POST", { plan });
+export async function startCheckout(plan: string, consent: boolean) {
+  const r = await api<{ url: string }>("/api/stripe/checkout", "POST", { plan, consent });
   window.location.href = r.url;
 }

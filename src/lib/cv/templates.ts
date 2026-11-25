@@ -71,6 +71,14 @@ export const TEMPLATES: Template[] = [
   { id: "terminal", name: "Terminal", layout: "split", color: "#16a34a", font: "mono", free: false, category: "Créatif", headings: "caps", description: "Clin d'œil développeur, police monospace." },
   { id: "atelier", name: "Atelier", layout: "card", color: "#c2410c", font: "slab", free: false, category: "Classique", headings: "pill", description: "Chaleureux, idéal pour l'artisanat et la vente." },
   { id: "prisme", name: "Prisme", layout: "sidebar-left", color: "#4f46e5", font: "poppins", free: false, category: "Moderne", headings: "pill", description: "Indigo vif et compétences en pastilles." },
+  { id: "minuit", name: "Minuit", layout: "sidebar-left", color: "#14b8a6", font: "raleway", free: false, dark: true, category: "Moderne", headings: "caps", description: "Bleu nuit et turquoise, très haut de gamme." },
+  { id: "pastel", name: "Pastel", layout: "card", color: "#db2777", font: "poppins", free: false, category: "Créatif", headings: "pill", description: "Doux et lumineux, idéal pour les métiers du lien." },
+  { id: "berlin", name: "Berlin", layout: "split", color: "#111827", font: "montserrat", free: false, category: "Minimaliste", headings: "underline", description: "Noir et blanc, typographie forte." },
+  { id: "riviera", name: "Riviera", layout: "banner", color: "#0d9488", font: "source", free: false, category: "Moderne", headings: "line", description: "Dégradé méditerranéen et lecture fluide." },
+  { id: "academique", name: "Académique", layout: "executive", color: "#7f1d1d", font: "lora", free: false, category: "Classique", headings: "underline", description: "Pour la recherche, l'enseignement et le droit." },
+  { id: "startup", name: "Startup", layout: "sidebar-right", color: "#7c3aed", font: "inter", free: false, category: "Moderne", headings: "pill", description: "Dynamique, pour la tech et les jeunes entreprises." },
+  { id: "boreal", name: "Boréal", layout: "timeline", color: "#15803d", font: "raleway", free: false, category: "Moderne", headings: "line", description: "Frise verte, nette et rassurante." },
+  { id: "monochrome", name: "Monochrome", layout: "classic", color: "#111111", font: "inter", free: false, category: "Minimaliste", headings: "caps", description: "Sobriété absolue, tout en noir." },
 ];
 
 export function getTemplate(id: string | undefined) {

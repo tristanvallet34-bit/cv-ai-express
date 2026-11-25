@@ -3,18 +3,25 @@ import { useState } from "react";
 import Link from "next/link";
 import { PLANS, formatPrice } from "@/lib/plans";
 import { startCheckout, ApiError } from "@/lib/client";
-import { AuthModal } from "@/components/Modals";
+import { AuthModal, ConsentBox } from "@/components/Modals";
 
 export default function Pricing() {
   const [loading, setLoading] = useState("");
   const [err, setErr] = useState("");
   const [authFor, setAuthFor] = useState<string | null>(null);
+  const [consent, setConsent] = useState(false);
+  const [consentErr, setConsentErr] = useState(false);
 
   async function buy(plan: string) {
     setErr("");
+    if (!consent) {
+      setConsentErr(true);
+      document.getElementById("consent-box")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     setLoading(plan);
     try {
-      await startCheckout(plan);
+      await startCheckout(plan, true);
     } catch (e) {
       if (e instanceof ApiError && e.login) setAuthFor(plan);
       else setErr(e instanceof Error ? e.message : "Erreur");
@@ -43,9 +50,11 @@ export default function Pricing() {
             <div className="muted" style={{ fontSize: ".85rem", minHeight: 20 }}>{p.perMonth}</div>
             <p className="muted" style={{ fontSize: ".9rem", marginTop: 10 }}>{p.description}</p>
             <ul>
-              <li>22 modèles de CV + 6 de lettres</li>
+              <li>30 modèles de CV + 6 de lettres</li>
               <li>PDF illimités sans mention</li>
               <li>IA illimitée</li>
+              <li>CV adapté à chaque offre</li>
+              <li>Traduction en anglais</li>
               <li>Analyse ATS approfondie</li>
               <li>Préparation d&apos;entretien</li>
               <li>CV en ligne partageable</li>
@@ -55,6 +64,9 @@ export default function Pricing() {
             </button>
           </div>
         ))}
+      </div>
+      <div id="consent-box" style={{ maxWidth: 720, margin: "20px auto 0" }}>
+        <ConsentBox checked={consent} onChange={(v) => { setConsent(v); setConsentErr(false); }} error={consentErr} />
       </div>
       {authFor && (
         <AuthModal

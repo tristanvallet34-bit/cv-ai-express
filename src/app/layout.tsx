@@ -11,7 +11,7 @@ import { GOOGLE_FONTS_URL } from "@/lib/cv/templates";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
   title: { default: `${SITE.name} — Créer un CV professionnel en ligne`, template: `%s | ${SITE.name}` },
-  description: "Créez un CV professionnel en 5 minutes : 22 modèles, assistant IA, lettre de motivation, analyse ATS et export PDF.",
+  description: "Créez un CV professionnel en 5 minutes : 30 modèles, assistant IA, lettre de motivation, analyse ATS et export PDF.",
   openGraph: { type: "website", siteName: SITE.name, locale: "fr_FR" },
   icons: { icon: "/icon.svg" },
 };
