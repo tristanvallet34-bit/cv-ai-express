@@ -13,7 +13,7 @@ Site complet de création de CV et de lettres de motivation, monétisé par abon
 - **Lettres de motivation** : 6 modèles, rédaction IA à partir du CV et de l'offre, 5 tons.
 - **Analyse ATS**, **préparation d'entretien** (Premium), **CV en ligne** partageable (Premium).
 - **Comptes** : inscription, connexion, **mot de passe oublié par email**, emails de bienvenue et de confirmation Premium, suppression du compte (RGPD).
-- **Paiements** : carte bancaire via **Stripe** et **PayPal en direct**, au choix du client (pass 7 jours et abonnements, résiliation, webhooks vérifiés).
+- **Paiements** : **PayPal** (compte PayPal ou carte bancaire via PayPal) : pass 7 jours et abonnements, résiliation, webhooks vérifiés. Stripe est présent mais désactivé ; mettez `ENABLE_STRIPE="true"` pour le réactiver.
 - **Admin** (`/admin`) : utilisateurs, abonnés, MRR, revenus par moyen de paiement, **connexion Stripe** (`/admin/stripe`) et **connexion PayPal** (`/admin/paypal`) en un clic.
 - **SEO** : 10 exemples de CV par métier, 6 guides, sitemap, image de partage, données structurées.
 - **Pages légales** et formulaire de contact.

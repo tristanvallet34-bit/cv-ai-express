@@ -3,13 +3,14 @@ import { notFound } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { stripeStatus } from "@/lib/stripe";
 import StripeConnect from "./StripeConnect";
+import { SITE } from "@/lib/config";
 
 export const metadata: Metadata = { title: "Connexion Stripe", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const u = await getCurrentUser();
-  if (!u || !isAdmin(u)) notFound();
+  if (!u || !isAdmin(u) || !SITE.stripeEnabled) notFound();
   return (
     <div className="section-soft" style={{ minHeight: "80vh" }}>
       <div className="container narrow" style={{ padding: "40px 20px 70px" }}>

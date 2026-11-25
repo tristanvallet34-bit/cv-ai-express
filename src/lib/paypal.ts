@@ -119,7 +119,7 @@ type Link = { rel: string; href: string };
 // ---------- Démarrage du paiement ----------
 export async function paypalCheckout(user: User, plan: Plan, origin: string) {
   const c = await paypalCreds();
-  if (!c) throw new PaypalError("PayPal n'est pas configuré.", 503);
+  if (!c) throw new PaypalError("Le paiement sera disponible très bientôt. Merci de réessayer un peu plus tard !", 503);
   const ctx = { brand_name: SITE.name.slice(0, 127), locale: "fr-FR", shipping_preference: "NO_SHIPPING" };
 
   if (plan.mode === "payment") {
@@ -144,13 +144,22 @@ export async function paypalCheckout(user: User, plan: Plan, origin: string) {
     return url;
   }
 
-  const planId = await ensurePlan(c, plan);
-  const sub = await call<{ id: string; links: Link[] }>(c, "POST", "/v1/billing/subscriptions", {
-    plan_id: planId,
-    custom_id: `${user.id}|${plan.id}`,
-    subscriber: { email_address: user.email },
-    application_context: { ...ctx, user_action: "SUBSCRIBE_NOW", return_url: `${origin}/api/paypal/return?kind=sub`, cancel_url: `${origin}/tarifs?canceled=1` },
-  });
+  const createSub = async () =>
+    call<{ id: string; links: Link[] }>(c, "POST", "/v1/billing/subscriptions", {
+      plan_id: await ensurePlan(c, plan),
+      custom_id: `${user.id}|${plan.id}`,
+      subscriber: { email_address: user.email },
+      application_context: { ...ctx, user_action: "SUBSCRIBE_NOW", return_url: `${origin}/api/paypal/return?kind=sub`, cancel_url: `${origin}/tarifs?canceled=1` },
+    });
+  let sub: { id: string; links: Link[] };
+  try {
+    sub = await createSub();
+  } catch (e) {
+    // Offre enregistrée introuvable côté PayPal : on la recrée et on réessaie une fois
+    if (!(e instanceof PaypalError) || ![400, 404, 422].includes(e.status)) throw e;
+    await setSettings({ [`paypal.${c.mode}.plan.${plan.id}`]: null, [`paypal.${c.mode}.productId`]: null }, false);
+    sub = await createSub();
+  }
   const url = sub.links.find((l) => l.rel === "approve")?.href;
   if (!url) throw new PaypalError("Lien d'abonnement PayPal introuvable.");
   return url;

@@ -48,7 +48,7 @@ export default function Footer() {
         </div>
         <div className="footer-bottom">
           <span>© {new Date().getFullYear()} CV Express. Tous droits réservés.</span>
-          <span>Paiement sécurisé par Stripe · Résiliation en 1 clic</span>
+          <span>Paiement sécurisé par PayPal · Résiliation en 1 clic</span>
         </div>
       </div>
     </footer>

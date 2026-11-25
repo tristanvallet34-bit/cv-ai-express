@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   const stripe = await getStripe();
 
   if (!stripe) {
-    if (!(await demoMode())) return error("Paiement indisponible : Stripe n'est pas configuré.", 503);
+    if (!(await demoMode())) return error("Le paiement par carte n'est pas proposé. Choisissez PayPal.", 503);
     // Mode démo (développement) : active Premium sans paiement
     const until = new Date(Date.now() + (plan.days || 30) * 86400000);
     await prisma.user.update({

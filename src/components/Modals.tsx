@@ -90,7 +90,16 @@ export function AuthModal({ onClose, onDone, initial }: { onClose: () => void; o
 
 export function PayMethodPicker({ value, onChange }: { value: PayProvider; onChange: (p: PayProvider) => void }) {
   const m = usePayMethods();
-  if (!m || !m.paypal) return null;
+  if (!m) return null;
+  if (!m.stripe) {
+    return (
+      <div className="pay-single">
+        <span className="pp-logo">PayPal</span>
+        <span>Paiement sécurisé par PayPal : avec votre compte PayPal ou directement par carte bancaire.</span>
+      </div>
+    );
+  }
+  if (!m.paypal) return null;
   const opts: { id: PayProvider; label: string; sub: string; show: boolean }[] = [
     { id: "stripe", label: "💳 Carte bancaire", sub: "CB, Visa, Mastercard, Apple Pay", show: m.stripe },
     { id: "paypal", label: "🅿️ PayPal", sub: "Payez avec votre compte PayPal", show: true },
@@ -111,7 +120,7 @@ export function PayMethodPicker({ value, onChange }: { value: PayProvider; onCha
 export function useDefaultProvider(): [PayProvider, (p: PayProvider) => void] {
   const m = usePayMethods();
   const [p, setP] = useState<PayProvider | null>(null);
-  const value: PayProvider = p ?? (m && !m.stripe && m.paypal ? "paypal" : "stripe");
+  const value: PayProvider = p ?? (!m || !m.stripe ? "paypal" : "stripe");
   return [value, setP];
 }
 
@@ -170,7 +179,7 @@ export function UpsellModal({ onClose, reason }: { onClose: () => void; reason?:
         ))}
       </div>
       <p className="muted center" style={{ fontSize: ".82rem", marginTop: 14, marginBottom: 0 }}>
-        Paiement sécurisé par Stripe ou PayPal · Abonnements résiliables en 1 clic depuis votre espace · <Link href="/tarifs">Comparer les offres</Link>
+        Paiement sécurisé par PayPal · Abonnements résiliables en 1 clic depuis votre espace · <Link href="/tarifs">Comparer les offres</Link>
       </p>
     </Modal>
   );

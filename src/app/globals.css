@@ -223,3 +223,5 @@ img { max-width: 100%; }
 .pay-method span { font-size: .78rem; color: var(--muted); }
 .pay-method.active { border-color: var(--brand); background: var(--brand-50); }
 @media (max-width: 480px) { .pay-methods { grid-template-columns: 1fr; } }
+.pay-single { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: #f0f6ff; border: 1px solid #cfe0ff; font-size: .85rem; color: #1e3a8a; margin: 14px 0 4px; }
+.pp-logo { font-weight: 800; font-style: italic; color: #003087; background: #ffc439; border-radius: 8px; padding: 4px 10px; flex: none; }
