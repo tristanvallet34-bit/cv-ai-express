@@ -48,6 +48,7 @@ export async function getSetting(k: string) {
 }
 
 export async function setSettings(values: Record<string, string | null>, secret = true) {
+  if (process.env.NODE_ENV === "production" && (process.env.AUTH_SECRET || "").length < 16) throw new Error("AUTH_SECRET manquant : ajoutez-le dans les variables d'environnement avant de connecter un moyen de paiement.");
   for (const [k, v] of Object.entries(values)) {
     if (v === null) await prisma.setting.deleteMany({ where: { key: k } });
     else {

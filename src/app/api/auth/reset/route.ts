@@ -1,10 +1,11 @@
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
-import { createSession } from "@/lib/auth";
+import { authConfigured, AUTH_MISSING, createSession } from "@/lib/auth";
 import { json, error } from "@/lib/http";
 
 export async function POST(req: Request) {
+  if (!authConfigured()) return error(AUTH_MISSING, 503);
   const { token, password } = await req.json().catch(() => ({}));
   if (!token || String(password || "").length < 8) return error("Le mot de passe doit contenir au moins 8 caractères.");
   const hash = crypto.createHash("sha256").update(String(token)).digest("hex");

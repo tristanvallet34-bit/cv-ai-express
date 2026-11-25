@@ -10,18 +10,26 @@ const MAX_AGE = 60 * 60 * 24 * 30; // 30 jours
 function secret() {
   const s = process.env.AUTH_SECRET;
   if (!s || s.length < 16) {
-    if (process.env.NODE_ENV === "production") throw new Error("AUTH_SECRET manquant ou trop court");
+    if (process.env.NODE_ENV === "production") return null;
     return new TextEncoder().encode("dev-only-insecure-secret-please-change");
   }
   return new TextEncoder().encode(s);
 }
 
+export function authConfigured() {
+  return !!secret();
+}
+
+export const AUTH_MISSING = "Le site n'est pas encore configuré (AUTH_SECRET manquant). Administrateur : ajoutez cette variable chez votre hébergeur puis redéployez.";
+
 export async function createSession(userId: string) {
+  const key = secret();
+  if (!key) throw new Error("AUTH_SECRET manquant : ajoutez-le dans les variables d'environnement de l'hébergeur.");
   const token = await new SignJWT({ sub: userId })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${MAX_AGE}s`)
-    .sign(secret());
+    .sign(key);
   const jar = await cookies();
   jar.set(COOKIE, token, {
     httpOnly: true,
@@ -40,9 +48,10 @@ export async function destroySession() {
 export async function getCurrentUser(): Promise<User | null> {
   const jar = await cookies();
   const token = jar.get(COOKIE)?.value;
-  if (!token) return null;
+  const key = secret();
+  if (!token || !key) return null;
   try {
-    const { payload } = await jwtVerify(token, secret());
+    const { payload } = await jwtVerify(token, key);
     if (!payload.sub) return null;
     return await prisma.user.findUnique({ where: { id: payload.sub } });
   } catch {

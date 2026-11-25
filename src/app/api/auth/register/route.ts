@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { createSession, toPublicUser } from "@/lib/auth";
+import { authConfigured, AUTH_MISSING, createSession, toPublicUser } from "@/lib/auth";
 import { json, error, rateLimit, clientIp } from "@/lib/http";
 import { sendEmail, emails } from "@/lib/email";
 
@@ -12,6 +12,7 @@ const schema = z.object({
 });
 
 export async function POST(req: Request) {
+  if (!authConfigured()) return error(AUTH_MISSING, 503);
   if (!rateLimit(`reg:${clientIp(req)}`, 10, 60 * 60 * 1000)) return error("Trop de tentatives, réessayez plus tard.", 429);
   const parsed = schema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return error(parsed.error.issues[0].message);

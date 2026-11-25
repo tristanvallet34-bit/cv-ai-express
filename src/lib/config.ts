@@ -2,7 +2,9 @@
 export const SITE = {
   name: "CV Express",
   tagline: "Le générateur de CV professionnel assisté par IA",
-  url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+  // Sur Vercel, l'adresse de production est détectée automatiquement
+  url: (process.env.NEXT_PUBLIC_SITE_URL ||
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000")).replace(/\/$/, ""),
   supportEmail: "support@cv-express.fr",
   // Informations légales (à compléter avant la mise en ligne)
   legal: {

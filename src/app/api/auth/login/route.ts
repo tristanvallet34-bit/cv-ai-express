@@ -1,9 +1,10 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
-import { createSession, toPublicUser } from "@/lib/auth";
+import { authConfigured, AUTH_MISSING, createSession, toPublicUser } from "@/lib/auth";
 import { json, error, rateLimit, clientIp } from "@/lib/http";
 
 export async function POST(req: Request) {
+  if (!authConfigured()) return error(AUTH_MISSING, 503);
   if (!rateLimit(`login:${clientIp(req)}`, 20, 15 * 60 * 1000)) return error("Trop de tentatives, réessayez dans quelques minutes.", 429);
   const body = await req.json().catch(() => ({}));
   const email = String(body.email || "").trim().toLowerCase();
