@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
+import { isAdmin } from "@/lib/auth";
 import { sendEmail, emails } from "@/lib/email";
 import { SITE } from "@/lib/config";
 import { json, rateLimit, clientIp, error } from "@/lib/http";
@@ -16,7 +17,9 @@ export async function POST(req: Request) {
     const origin = req.headers.get("origin") || SITE.url;
     const url = `${origin}/reinitialiser?token=${token}`;
     const sent = await sendEmail(user.email, "Réinitialisation de votre mot de passe", emails.reset(url));
-    if (!sent && process.env.NODE_ENV !== "production") console.log(`[dev] lien de réinitialisation : ${url}`);
+    // Sans service d'email : en local, ou pour l'administrateur uniquement, le lien est écrit
+    // dans les journaux privés de l'hébergeur (jamais pour les comptes clients).
+    if (!sent && (process.env.NODE_ENV !== "production" || isAdmin(user))) console.log(`[admin] lien de réinitialisation (valable 1 h) : ${url}`);
   }
   // Réponse identique que le compte existe ou non (évite de révéler les emails inscrits)
   return json({ ok: true });
