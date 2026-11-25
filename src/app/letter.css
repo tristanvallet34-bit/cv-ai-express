@@ -1,0 +1,38 @@
+.letter { --accent: #4f46e5; --font: Inter, sans-serif; position: relative; width: 210mm; min-height: 297mm; background: #fff; color: #1f2937; font-family: var(--font); font-size: 10.5pt; line-height: 1.55; box-sizing: border-box; overflow: hidden; -webkit-print-color-adjust: exact; print-color-adjust: exact; text-align: left; }
+.letter * { box-sizing: border-box; }
+.letter p { margin: 0 0 3.6mm; text-align: justify; }
+.lt-main { padding: 20mm 20mm 18mm; }
+.lt-sender { line-height: 1.45; }
+.lt-name { font-size: 15pt; display: block; color: #111827; }
+.lt-title { color: var(--accent); font-weight: 600; margin-bottom: 1mm; }
+.lt-recipient { margin: 12mm 0 8mm auto; width: 75mm; line-height: 1.45; }
+.lt-pre { white-space: pre-line; }
+.lt-date { text-align: right; margin-bottom: 8mm; }
+.lt-subject { margin-bottom: 7mm; }
+.lt-body { margin-bottom: 8mm; }
+.lt-sign { text-align: right; font-weight: 600; margin-right: 10mm; }
+.lt-placeholder { color: #9ca3af; font-style: italic; }
+.lt-moderne { border-left: 3.5mm solid var(--accent); }
+.lt-moderne .lt-head { padding-bottom: 6mm; border-bottom: 0.4mm solid #e5e7eb; }
+.lt-moderne .lt-name { font-size: 18pt; }
+.lt-moderne .lt-subject strong { color: var(--accent); }
+.lt-elegant .lt-head { text-align: center; padding-bottom: 6mm; border-bottom: 0.3mm solid #111; }
+.lt-elegant .lt-name { font-size: 22pt; font-weight: 600; letter-spacing: 0.04em; }
+.lt-elegant .lt-title { color: #6b7280; font-style: italic; font-weight: 400; }
+.lt-band { background: var(--accent); color: #fff; padding: 14mm 20mm; }
+.lt-band .lt-name { color: #fff; font-size: 20pt; }
+.lt-band .lt-title { color: rgba(255,255,255,.85); }
+.lt-band .lt-sender { display: grid; grid-template-columns: 1fr; }
+.lt-bandeau .lt-main { padding-top: 6mm; }
+.lt-bandeau .lt-recipient { margin-top: 8mm; }
+.lt-grid { display: grid; grid-template-columns: 62mm 1fr; min-height: 297mm; }
+.lt-side { background: var(--accent); color: #fff; padding: 20mm 8mm; }
+.lt-side .lt-name { color: #fff; font-size: 17pt; margin-bottom: 2mm; }
+.lt-side .lt-title { color: rgba(255,255,255,.85); margin-bottom: 6mm; }
+.lt-side .lt-sender > div { margin-bottom: 2mm; word-break: break-word; }
+.lt-lateral .lt-main { padding: 20mm 15mm; }
+.lt-lateral .lt-recipient { margin-top: 0; }
+.lt-minimal .lt-name { font-weight: 500; font-size: 20pt; }
+.lt-minimal .lt-title { color: var(--accent); }
+.lt-minimal .lt-subject strong { color: var(--accent); }
+.lt-classique .lt-title { color: #374151; }
