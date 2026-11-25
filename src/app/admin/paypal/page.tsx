@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
+import NotAdmin from "@/components/NotAdmin";
 import { paypalStatus } from "@/lib/paypal";
 import PaypalConnect from "./PaypalConnect";
 
@@ -8,8 +8,8 @@ export const metadata: Metadata = { title: "Connexion PayPal", robots: { index: 
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const u = await getCurrentUser();
-  if (!u || !isAdmin(u)) notFound();
+  const { user, admin } = await requireAdmin("/admin/paypal");
+  if (!admin) return <NotAdmin email={user.email} />;
   return (
     <div className="section-soft" style={{ minHeight: "80vh" }}>
       <div className="container narrow" style={{ padding: "40px 20px 70px" }}>

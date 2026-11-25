@@ -4,7 +4,7 @@ import "./cv.css";
 import "./letter.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { getCurrentUser, isPremium } from "@/lib/auth";
+import { getCurrentUser, isPremium, isAdmin } from "@/lib/auth";
 import { SITE } from "@/lib/config";
 import { GOOGLE_FONTS_URL } from "@/lib/cv/templates";
 
@@ -28,7 +28,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="stylesheet" href={GOOGLE_FONTS_URL} />
       </head>
       <body>
-        <Header user={user ? { name: user.name, email: user.email, premium: isPremium(user) } : null} />
+        <Header user={user ? { name: user.name, email: user.email, premium: isPremium(user), admin: isAdmin(user) } : null} />
         {children}
         <Footer />
       </body>
