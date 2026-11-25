@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { getCurrentUser, isAdmin, isPremium } from "@/lib/auth";
+import { isPremium } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin-guard";
+import NotAdmin from "@/components/NotAdmin";
 import { prisma } from "@/lib/db";
 import { PLANS, formatPrice, getPlan } from "@/lib/plans";
 import { aiEnabled } from "@/lib/ai";
@@ -20,8 +21,8 @@ function monthlyValue(planId: string) {
 }
 
 export default async function AdminPage() {
-  const me = await getCurrentUser();
-  if (!me || !isAdmin(me)) notFound();
+  const { user: me, admin } = await requireAdmin("/admin");
+  if (!admin) return <NotAdmin email={me.email} />;
   const now = new Date();
   const d30 = new Date(now.getTime() - 30 * 86400000);
   const [users, users30, resumes, letters, payments30, paymentsAll, activeSubs, recentUsers, recentPayments, ai30] = await Promise.all([

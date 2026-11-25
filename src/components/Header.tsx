@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 
-type U = { name: string | null; email: string; premium: boolean } | null;
+type U = { name: string | null; email: string; premium: boolean; admin?: boolean } | null;
 
 export default function Header({ user }: { user: U }) {
   const [open, setOpen] = useState(false);
@@ -26,7 +26,8 @@ export default function Header({ user }: { user: U }) {
         <div className="nav-actions">
           {user ? (
             <>
-              {!user.premium && (
+              {user.admin && <Link href="/admin" className="btn btn-primary btn-sm">⚙ Admin</Link>}
+              {!user.premium && !user.admin && (
                 <Link href="/tarifs" className="btn btn-gold btn-sm hide-sm">★ Premium</Link>
               )}
               <Link href="/compte" className="btn btn-outline btn-sm">Mon espace</Link>
