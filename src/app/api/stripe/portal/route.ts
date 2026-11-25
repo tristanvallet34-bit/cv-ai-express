@@ -8,6 +8,7 @@ import { json, error } from "@/lib/http";
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return error("Non connecté", 401);
+  if (user.billingProvider === "paypal") return error("Votre abonnement est géré par PayPal : utilisez le bouton « Résilier mon abonnement PayPal ».", 409);
   const origin = req.headers.get("origin") || SITE.url;
   const stripe = await getStripe();
   if (!stripe) {

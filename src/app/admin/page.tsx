@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { PLANS, formatPrice, getPlan } from "@/lib/plans";
 import { aiEnabled } from "@/lib/ai";
 import { stripeStatus, demoMode } from "@/lib/stripe";
+import { paypalStatus } from "@/lib/paypal";
 import Link from "next/link";
 
 export const metadata: Metadata = { title: "Administration", robots: { index: false } };
@@ -35,6 +36,7 @@ export default async function AdminPage() {
     prisma.aiUsage.aggregate({ _sum: { count: true }, where: { day: { gte: d30.toISOString().slice(0, 10) } } }),
   ]);
   const st = await stripeStatus();
+  const pp = await paypalStatus();
   const demo = await demoMode();
   const passes = await prisma.user.count({ where: { premiumUntil: { gt: now } } });
   const mrr = activeSubs.reduce((s, u) => s + monthlyValue(u.plan), 0);
@@ -57,7 +59,11 @@ export default async function AdminPage() {
         <h1 style={{ fontSize: "2rem" }}>Tableau de bord</h1>
         <div className="alert alert-info" style={{ fontSize: ".88rem" }}>
           Stripe : {st.connected ? `✅ connecté (${st.mode === "live" ? "mode réel" : "mode test"})` : demo ? "⚠ mode démo (aucun paiement réel)" : "❌ non connecté"} · Webhook : {st.webhook === "ok" ? "✅" : "❌"} · IA Claude : {aiEnabled() ? "✅" : "❌ (générateur local)"} · Emails : {process.env.RESEND_API_KEY ? "✅" : "❌"}{" "}
-          <Link href="/admin/stripe" className="btn btn-primary btn-sm" style={{ marginLeft: 8 }}>{st.connected ? "Gérer Stripe" : "Connecter mon compte Stripe →"}</Link>
+          · PayPal : {pp.connected ? `✅ connecté (${pp.mode === "live" ? "réel" : "sandbox"})` : "❌ non connecté"}
+          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+            <Link href="/admin/stripe" className="btn btn-primary btn-sm">{st.connected ? "Gérer Stripe" : "Connecter Stripe →"}</Link>
+            <Link href="/admin/paypal" className="btn btn-outline btn-sm">{pp.connected ? "Gérer PayPal" : "Connecter PayPal →"}</Link>
+          </div>
         </div>
         <div className="grid grid-4" style={{ marginBottom: 30 }}>
           {stats.map(([l, v, s]) => (
@@ -70,10 +76,10 @@ export default async function AdminPage() {
             <table className="table"><tbody>{byPlan.map(({ p, n }) => <tr key={p.id}><td>{p.name}</td><td>{n}</td></tr>)}</tbody></table>
             <h3 style={{ marginTop: 24 }}>Derniers paiements</h3>
             <table className="table">
-              <thead><tr><th>Date</th><th>Client</th><th>Offre</th><th>Montant</th></tr></thead>
+              <thead><tr><th>Date</th><th>Client</th><th>Offre</th><th>Via</th><th>Montant</th></tr></thead>
               <tbody>
-                {recentPayments.map((p) => <tr key={p.id}><td>{p.createdAt.toLocaleDateString("fr-FR")}</td><td>{p.user?.email || "—"}</td><td>{getPlan(p.plan)?.name || p.plan || "—"}</td><td>{formatPrice(p.amount)}</td></tr>)}
-                {recentPayments.length === 0 && <tr><td colSpan={4} className="muted">Aucun paiement pour l&apos;instant.</td></tr>}
+                {recentPayments.map((p) => <tr key={p.id}><td>{p.createdAt.toLocaleDateString("fr-FR")}</td><td>{p.user?.email || "—"}</td><td>{getPlan(p.plan)?.name || p.plan || "—"}</td><td>{p.provider === "paypal" ? "PayPal" : "Stripe"}</td><td>{formatPrice(p.amount)}</td></tr>)}
+                {recentPayments.length === 0 && <tr><td colSpan={5} className="muted">Aucun paiement pour l&apos;instant.</td></tr>}
               </tbody>
             </table>
           </div>

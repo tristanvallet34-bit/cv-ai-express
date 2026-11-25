@@ -20,6 +20,7 @@ async function syncSubscription(sub: Stripe.Subscription) {
   await prisma.user.update({
     where: { id: user.id },
     data: {
+      billingProvider: "stripe",
       subscriptionId: sub.id,
       subscriptionStatus: sub.status,
       cancelAtPeriodEnd: sub.cancel_at_period_end,
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
           });
           await prisma.payment.upsert({
             where: { stripeId: s.id },
-            create: { stripeId: s.id, userId: user.id, amount: s.amount_total || 0, currency: s.currency || "eur", plan: plan.id },
+            create: { stripeId: s.id, provider: "stripe", userId: user.id, amount: s.amount_total || 0, currency: s.currency || "eur", plan: plan.id },
             update: {},
           });
         }

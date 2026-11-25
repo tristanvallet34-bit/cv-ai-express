@@ -215,3 +215,11 @@ img { max-width: 100%; }
   .print-only { display: block !important; }
   .print-area .cv, .print-area .letter { box-shadow: none !important; border-radius: 0 !important; }
 }
+
+/* Choix du moyen de paiement */
+.pay-methods { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0 4px; }
+.pay-method { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 12px 14px; border-radius: 12px; border: 2px solid var(--line); background: #fff; cursor: pointer; font: inherit; color: var(--text); }
+.pay-method strong { color: var(--ink); font-size: .95rem; }
+.pay-method span { font-size: .78rem; color: var(--muted); }
+.pay-method.active { border-color: var(--brand); background: var(--brand-50); }
+@media (max-width: 480px) { .pay-methods { grid-template-columns: 1fr; } }

@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       data:
         plan.mode === "payment"
           ? { plan: plan.id, premiumUntil: until }
-          : { plan: plan.id, subscriptionStatus: "active", subscriptionId: `demo_${user.id}`, cancelAtPeriodEnd: false },
+          : { plan: plan.id, subscriptionStatus: "active", subscriptionId: `demo_${user.id}`, cancelAtPeriodEnd: false, billingProvider: "stripe" },
     });
     return json({ url: `${origin}/compte?success=1&demo=1` });
   }

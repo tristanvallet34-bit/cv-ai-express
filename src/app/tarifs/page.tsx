@@ -24,7 +24,8 @@ const ROWS: [string, string, string][] = [
   ["Export texte & JSON", "✓", "✓"],
 ];
 
-export default function TarifsPage() {
+export default async function TarifsPage({ searchParams }: { searchParams: Promise<{ paypal?: string }> }) {
+  const sp = await searchParams;
   return (
     <>
       <div className="page-head">
@@ -36,9 +37,10 @@ export default function TarifsPage() {
       </div>
       <section className="section" style={{ paddingTop: 50 }}>
         <div className="container">
+          {sp.paypal === "error" && <div className="alert alert-error" style={{ maxWidth: 600, margin: "0 auto 20px" }}>Le paiement PayPal n&apos;a pas pu être finalisé. Aucun montant n&apos;a été débité si l&apos;opération a échoué. Réessayez ou contactez-nous.</div>}
           <Pricing />
           <p className="center muted" style={{ fontSize: ".85rem", marginTop: 20 }}>
-            Prix TTC. Paiement sécurisé par Stripe (CB, Apple Pay, Google Pay). Les abonnements se renouvellent automatiquement jusqu&apos;à résiliation, possible à tout moment depuis votre espace.
+            Prix TTC. Paiement sécurisé par carte bancaire (Stripe) ou PayPal. Les abonnements se renouvellent automatiquement jusqu&apos;à résiliation, possible à tout moment depuis votre espace.
           </p>
         </div>
       </section>
@@ -68,7 +70,7 @@ export default function TarifsPage() {
             ["Le Pass 7 jours se renouvelle-t-il ?", "Non. C'est un paiement unique : l'accès Premium s'arrête automatiquement au bout de 7 jours. Aucun prélèvement ne suit."],
             ["Que deviennent mes CV si j'arrête Premium ?", "Ils restent dans votre espace et modifiables. Vous pourrez les télécharger avec les modèles gratuits."],
             ["Puis-je obtenir une facture ?", "Oui, toutes vos factures sont disponibles dans le portail de gestion de l'abonnement et envoyées par email."],
-            ["Quels moyens de paiement acceptez-vous ?", "Cartes bancaires (CB, Visa, Mastercard, American Express), Apple Pay et Google Pay, via Stripe. Nous ne stockons jamais vos données bancaires."],
+            ["Quels moyens de paiement acceptez-vous ?", "Cartes bancaires (CB, Visa, Mastercard, American Express), Apple Pay et Google Pay via Stripe, ainsi que PayPal. Nous ne stockons jamais vos données bancaires."],
           ].map(([q, a]) => (
             <details key={q}><summary>{q}</summary><p>{a}</p></details>
           ))}

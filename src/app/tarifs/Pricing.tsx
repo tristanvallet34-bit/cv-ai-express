@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { PLANS, formatPrice } from "@/lib/plans";
 import { startCheckout, ApiError } from "@/lib/client";
-import { AuthModal, ConsentBox } from "@/components/Modals";
+import { AuthModal, ConsentBox, PayMethodPicker, useDefaultProvider } from "@/components/Modals";
 
 export default function Pricing() {
   const [loading, setLoading] = useState("");
@@ -11,6 +11,7 @@ export default function Pricing() {
   const [authFor, setAuthFor] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
   const [consentErr, setConsentErr] = useState(false);
+  const [provider, setProvider] = useDefaultProvider();
 
   async function buy(plan: string) {
     setErr("");
@@ -21,7 +22,7 @@ export default function Pricing() {
     }
     setLoading(plan);
     try {
-      await startCheckout(plan, true);
+      await startCheckout(plan, true, provider);
     } catch (e) {
       if (e instanceof ApiError && e.login) setAuthFor(plan);
       else setErr(e instanceof Error ? e.message : "Erreur");
@@ -38,6 +39,9 @@ export default function Pricing() {
           <div className="muted" style={{ fontSize: ".92rem" }}>1 CV, 4 modèles, 5 générations IA par jour, PDF avec mention « CV Express ».</div>
         </div>
         <Link href="/editeur" className="btn btn-outline">Commencer gratuitement</Link>
+      </div>
+      <div style={{ maxWidth: 520, margin: "0 auto 26px" }}>
+        <PayMethodPicker value={provider} onChange={setProvider} />
       </div>
       <div className="pricing">
         {PLANS.map((p) => (

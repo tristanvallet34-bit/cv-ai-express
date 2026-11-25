@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser, toPublicUser } from "@/lib/auth";
+import { refreshIfStale } from "@/lib/paypal";
 import { prisma } from "@/lib/db";
 import { aiRemaining } from "@/lib/quota";
 import { normalizeCV } from "@/lib/cv/utils";
@@ -11,8 +12,9 @@ export const metadata: Metadata = { title: "Mon espace", robots: { index: false 
 export const dynamic = "force-dynamic";
 
 export default async function ComptePage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const user = await getCurrentUser();
-  if (!user) redirect("/connexion?next=/compte");
+  const current = await getCurrentUser();
+  if (!current) redirect("/connexion?next=/compte");
+  const user = await refreshIfStale(current);
   const sp = await searchParams;
   const [resumes, letters, ai] = await Promise.all([
     prisma.resume.findMany({ where: { userId: user.id }, orderBy: { updatedAt: "desc" } }),
@@ -22,6 +24,7 @@ export default async function ComptePage({ searchParams }: { searchParams: Promi
   return (
     <Dashboard
       user={toPublicUser(user)}
+      provider={user.billingProvider}
       ai={ai}
       flash={sp.success ? "success" : sp.canceled ? "canceled" : null}
       demo={!!sp.demo}

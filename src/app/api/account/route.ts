@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { getCurrentUser, destroySession, toPublicUser } from "@/lib/auth";
 import { getStripe } from "@/lib/stripe";
+import { cancelSubscription } from "@/lib/paypal";
 import { json, error } from "@/lib/http";
 
 // Mise à jour du profil (nom, mot de passe)
@@ -25,7 +26,9 @@ export async function DELETE() {
   const user = await getCurrentUser();
   if (!user) return error("Non connecté", 401);
   const stripe = await getStripe();
-  if (stripe && user.subscriptionId && user.subscriptionStatus !== "canceled") {
+  if (user.billingProvider === "paypal" && user.subscriptionId && user.subscriptionStatus !== "canceled") {
+    await cancelSubscription(user).catch((e) => console.error("[account] annulation PayPal", e));
+  } else if (stripe && user.subscriptionId && user.subscriptionStatus !== "canceled") {
     try {
       await stripe.subscriptions.cancel(user.subscriptionId);
     } catch (e) {

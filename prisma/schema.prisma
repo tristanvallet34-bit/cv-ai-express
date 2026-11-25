@@ -23,6 +23,8 @@ model User {
   subscriptionStatus String?   // active | trialing | past_due | canceled ...
   cancelAtPeriodEnd  Boolean   @default(false)
   premiumUntil       DateTime?
+  billingProvider    String?   // stripe | paypal
+  paypalCheckedAt    DateTime?
 
   resumes            Resume[]
   letters            Letter[]
@@ -73,7 +75,8 @@ model AiUsage {
 model Payment {
   id        String   @id @default(cuid())
   userId    String?
-  stripeId  String   @unique
+  stripeId  String   @unique // identifiant de la transaction (Stripe ou PayPal)
+  provider  String   @default("stripe")
   amount    Int      // en centimes
   currency  String   @default("eur")
   plan      String?

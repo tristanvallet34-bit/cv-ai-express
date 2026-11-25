@@ -15,7 +15,7 @@ export default function Page() {
         <ul>
           <li>Données de compte : email, prénom, mot de passe (stocké chiffré).</li>
           <li>Contenu de vos documents : informations saisies dans vos CV et lettres.</li>
-          <li>Données de facturation : gérées par Stripe (nous ne conservons que l&apos;identifiant client et l&apos;historique des paiements).</li>
+          <li>Données de facturation : gérées par Stripe ou PayPal (nous ne conservons que l&apos;identifiant client et l&apos;historique des paiements).</li>
           <li>Données techniques : cookie de session strictement nécessaire au fonctionnement du compte.</li>
         </ul>
         <h2>Finalités et bases légales</h2>
@@ -28,7 +28,7 @@ export default function Page() {
         <h2>Sous-traitants</h2>
         <ul>
           <li>Hébergement : {SITE.legal.host}.</li>
-          <li>Paiement : Stripe Payments Europe Ltd.</li>
+          <li>Paiement : Stripe Payments Europe Ltd. et PayPal (Europe) S.à r.l. et Cie, S.C.A.</li>
           <li>Assistant IA : Anthropic (API Claude) — seuls les textes nécessaires à la fonctionnalité demandée sont transmis, au moment où vous l&apos;utilisez.</li>
         </ul>
         <p>Certains sous-traitants peuvent traiter des données hors de l&apos;Union européenne ; ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne.</p>

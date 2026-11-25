@@ -55,6 +55,15 @@ export function useMe() {
   return { me, refresh, setMe };
 }
 
+// Moyens de paiement configurés (Stripe, PayPal)
+export function usePayMethods() {
+  const [m, setM] = useState<{ stripe: boolean; paypal: boolean } | null>(null);
+  useEffect(() => {
+    api<{ stripe: boolean; paypal: boolean }>("/api/payments/methods").then(setM).catch(() => setM({ stripe: true, paypal: false }));
+  }, []);
+  return m;
+}
+
 export function resizePhoto(file: File, size = 420): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -87,7 +96,9 @@ export function download(filename: string, content: string, type = "text/plain;c
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export async function startCheckout(plan: string, consent: boolean) {
-  const r = await api<{ url: string }>("/api/stripe/checkout", "POST", { plan, consent });
+export type PayProvider = "stripe" | "paypal";
+
+export async function startCheckout(plan: string, consent: boolean, provider: PayProvider = "stripe") {
+  const r = await api<{ url: string }>(provider === "paypal" ? "/api/paypal/checkout" : "/api/stripe/checkout", "POST", { plan, consent });
   window.location.href = r.url;
 }

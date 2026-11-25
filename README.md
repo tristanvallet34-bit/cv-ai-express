@@ -13,7 +13,8 @@ Site complet de création de CV et de lettres de motivation, monétisé par abon
 - **Lettres de motivation** : 6 modèles, rédaction IA à partir du CV et de l'offre, 5 tons.
 - **Analyse ATS**, **préparation d'entretien** (Premium), **CV en ligne** partageable (Premium).
 - **Comptes** : inscription, connexion, **mot de passe oublié par email**, emails de bienvenue et de confirmation Premium, suppression du compte (RGPD).
-- **Admin** (`/admin`) : utilisateurs, abonnés, MRR, revenus, et **connexion Stripe en un clic** (`/admin/stripe`).
+- **Paiements** : carte bancaire via **Stripe** et **PayPal en direct**, au choix du client (pass 7 jours et abonnements, résiliation, webhooks vérifiés).
+- **Admin** (`/admin`) : utilisateurs, abonnés, MRR, revenus par moyen de paiement, **connexion Stripe** (`/admin/stripe`) et **connexion PayPal** (`/admin/paypal`) en un clic.
 - **SEO** : 10 exemples de CV par métier, 6 guides, sitemap, image de partage, données structurées.
 - **Pages légales** et formulaire de contact.
 
@@ -54,8 +55,9 @@ Avec `DEMO_MODE="true"` et sans clé Stripe, les boutons d'achat activent Premiu
 4. **Créez votre compte** sur votre site avec l'email indiqué dans `ADMIN_EMAILS`.
 5. **Connectez Stripe** : allez sur `https://votre-site/admin/stripe`, collez votre clé secrète Stripe (Dashboard Stripe → Développeurs → Clés API). Le site crée tout seul le webhook et le portail client.
    - Testez d'abord avec `sk_test_…` et la carte `4242 4242 4242 4242`, puis recommencez avec `sk_live_…` pour encaisser pour de vrai.
-6. **Légal** : complétez `src/lib/config.ts` (raison sociale, SIRET, adresse, TVA) et le médiateur de la consommation dans `src/app/cgv/page.tsx`. Faites relire CGV et confidentialité par un professionnel avant d'encaisser.
-7. (Optionnel) **Nom de domaine** : Vercel → Settings → Domains.
+6. **Connectez PayPal** (en plus de Stripe) : il faut un compte PayPal Business. Sur [developer.paypal.com](https://developer.paypal.com/dashboard/applications) → Apps & Credentials → « Create App », copiez le Client ID et le Secret, puis collez-les sur `https://votre-site/admin/paypal`. Le site crée tout seul le webhook et les offres d'abonnement côté PayPal. Testez en **Sandbox** avec le compte acheteur de test fourni par PayPal, puis recommencez en **Live**.
+7. **Légal** : complétez `src/lib/config.ts` (raison sociale, SIRET, adresse, TVA) et le médiateur de la consommation dans `src/app/cgv/page.tsx`. Faites relire CGV et confidentialité par un professionnel avant d'encaisser.
+8. (Optionnel) **Nom de domaine** : Vercel → Settings → Domains.
 
 Les paiements arrivent sur votre solde Stripe puis sont virés automatiquement sur votre compte bancaire.
 
@@ -69,6 +71,7 @@ src/lib/cv/         types, modèles, exemples, utilitaires
 src/lib/ai.ts       intégration Claude (+ ai-local.ts en secours)
 src/lib/plans.ts    offres et limites
 src/lib/stripe.ts   paiements + connexion Stripe depuis l'admin
+src/lib/paypal.ts   PayPal direct : commandes, abonnements, webhooks, connexion depuis l'admin
 scripts/prepare-db.mjs  choix SQLite/PostgreSQL et création des tables au build
 prisma/schema.prisma
 ```

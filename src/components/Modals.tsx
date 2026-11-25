@@ -1,7 +1,7 @@
 "use client";
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { api, ApiError, startCheckout } from "@/lib/client";
+import { api, ApiError, startCheckout, usePayMethods, type PayProvider } from "@/lib/client";
 import { PLANS, PREMIUM_FEATURES, formatPrice } from "@/lib/plans";
 
 export function Modal({ onClose, children, wide }: { onClose: () => void; children: ReactNode; wide?: boolean }) {
@@ -88,6 +88,33 @@ export function AuthModal({ onClose, onDone, initial }: { onClose: () => void; o
   );
 }
 
+export function PayMethodPicker({ value, onChange }: { value: PayProvider; onChange: (p: PayProvider) => void }) {
+  const m = usePayMethods();
+  if (!m || !m.paypal) return null;
+  const opts: { id: PayProvider; label: string; sub: string; show: boolean }[] = [
+    { id: "stripe", label: "💳 Carte bancaire", sub: "CB, Visa, Mastercard, Apple Pay", show: m.stripe },
+    { id: "paypal", label: "🅿️ PayPal", sub: "Payez avec votre compte PayPal", show: true },
+  ];
+  return (
+    <div className="pay-methods" role="radiogroup" aria-label="Moyen de paiement">
+      {opts.filter((o) => o.show).map((o) => (
+        <button type="button" key={o.id} role="radio" aria-checked={value === o.id} className={`pay-method ${value === o.id ? "active" : ""}`} onClick={() => onChange(o.id)}>
+          <strong>{o.label}</strong>
+          <span>{o.sub}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Choisit PayPal par défaut si la carte n'est pas disponible
+export function useDefaultProvider(): [PayProvider, (p: PayProvider) => void] {
+  const m = usePayMethods();
+  const [p, setP] = useState<PayProvider | null>(null);
+  const value: PayProvider = p ?? (m && !m.stripe && m.paypal ? "paypal" : "stripe");
+  return [value, setP];
+}
+
 export function ConsentBox({ checked, onChange, error }: { checked: boolean; onChange: (v: boolean) => void; error?: boolean }) {
   return (
     <label className="check" style={{ fontSize: ".82rem", alignItems: "flex-start", padding: 10, borderRadius: 10, background: error ? "#fef2f2" : "var(--bg-soft)", border: `1px solid ${error ? "#fecaca" : "var(--line)"}`, margin: "14px 0 4px" }}>
@@ -104,12 +131,13 @@ export function UpsellModal({ onClose, reason }: { onClose: () => void; reason?:
   const [err, setErr] = useState("");
   const [consent, setConsent] = useState(false);
   const [consentErr, setConsentErr] = useState(false);
+  const [provider, setProvider] = useDefaultProvider();
   async function buy(plan: string) {
     if (!consent) return setConsentErr(true);
     setLoading(plan);
     setErr("");
     try {
-      await startCheckout(plan, true);
+      await startCheckout(plan, true, provider);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Erreur");
       setLoading("");
@@ -126,6 +154,7 @@ export function UpsellModal({ onClose, reason }: { onClose: () => void; reason?:
         ))}
       </ul>
       {err && <div className="alert alert-error">{err}</div>}
+      <PayMethodPicker value={provider} onChange={setProvider} />
       <ConsentBox checked={consent} onChange={(v) => { setConsent(v); setConsentErr(false); }} error={consentErr} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10, marginTop: 18 }}>
         {PLANS.map((p) => (
@@ -141,7 +170,7 @@ export function UpsellModal({ onClose, reason }: { onClose: () => void; reason?:
         ))}
       </div>
       <p className="muted center" style={{ fontSize: ".82rem", marginTop: 14, marginBottom: 0 }}>
-        Paiement sécurisé par Stripe · Abonnements résiliables en 1 clic depuis votre espace · <Link href="/tarifs">Comparer les offres</Link>
+        Paiement sécurisé par Stripe ou PayPal · Abonnements résiliables en 1 clic depuis votre espace · <Link href="/tarifs">Comparer les offres</Link>
       </p>
     </Modal>
   );

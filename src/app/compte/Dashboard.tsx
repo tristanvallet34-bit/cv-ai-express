@@ -16,7 +16,7 @@ type L = { id: string; title: string; updatedAt: string; data: LetterData };
 
 const fmt = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
 
-export default function Dashboard({ user, resumes, letters, ai, flash, demo }: { user: PublicUser; resumes: R[]; letters: L[]; ai: { limit: number; remaining: number }; flash: string | null; demo: boolean }) {
+export default function Dashboard({ user, resumes, letters, ai, flash, demo, provider }: { provider: string | null; user: PublicUser; resumes: R[]; letters: L[]; ai: { limit: number; remaining: number }; flash: string | null; demo: boolean }) {
   const router = useRouter();
   const [tab, setTab] = useState<"docs" | "account">("docs");
   const [busy, setBusy] = useState("");
@@ -177,9 +177,9 @@ export default function Dashboard({ user, resumes, letters, ai, flash, demo }: {
               {user.premium ? (
                 <>
                   <p>
-                    <span className="badge badge-gold">★ Premium actif</span> {plan && <strong style={{ color: "var(--ink)" }}>{plan.name}</strong>}
+                    <span className="badge badge-gold">★ Premium actif</span> {plan && <strong style={{ color: "var(--ink)" }}>{plan.name}</strong>} {provider && <span className="muted" style={{ fontSize: ".85rem" }}>· payé via {provider === "paypal" ? "PayPal" : "carte (Stripe)"}</span>}
                   </p>
-                  {user.premiumUntil && user.plan === "pass7" && <p className="muted">Accès jusqu&apos;au {fmt(user.premiumUntil)} (sans renouvellement).</p>}
+                  {user.premiumUntil && (user.plan === "pass7" || user.subscriptionStatus === "canceled") && <p className="muted">Accès jusqu&apos;au {fmt(user.premiumUntil)} (sans renouvellement).</p>}
                   {user.cancelAtPeriodEnd && <p className="muted">Résiliation programmée à la fin de la période en cours.</p>}
                 </>
               ) : (
@@ -187,7 +187,19 @@ export default function Dashboard({ user, resumes, letters, ai, flash, demo }: {
               )}
               <p className="muted" style={{ fontSize: ".9rem" }}>Assistant IA : {ai.remaining}/{ai.limit} générations restantes aujourd&apos;hui.</p>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {user.subscriptionStatus && user.subscriptionStatus !== "canceled" ? (
+                {provider === "paypal" && user.subscriptionStatus && user.subscriptionStatus !== "canceled" ? (
+                  <>
+                    <button className="btn btn-outline" disabled={!!busy} onClick={() => {
+                      if (!confirm("Résilier votre abonnement PayPal ? Vous gardez Premium jusqu'à la fin de la période déjà payée.")) return;
+                      act("ppcancel", async () => {
+                        await api("/api/paypal/cancel", "POST");
+                        setMsg({ ok: true, text: "Abonnement PayPal résilié. Premium reste actif jusqu'à la fin de la période payée." });
+                        router.refresh();
+                      });
+                    }}>{busy === "ppcancel" ? <span className="spinner" /> : "Résilier mon abonnement PayPal"}</button>
+                    <a className="btn btn-ghost" href="https://www.paypal.com/myaccount/autopay/" target="_blank" rel="noreferrer">Voir sur PayPal</a>
+                  </>
+                ) : user.subscriptionStatus && user.subscriptionStatus !== "canceled" ? (
                   <button className="btn btn-outline" disabled={!!busy} onClick={() => act("portal", async () => {
                     const r = await api<{ url: string }>("/api/stripe/portal", "POST");
                     window.location.href = r.url;
