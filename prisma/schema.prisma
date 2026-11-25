@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// En production, remplacez "sqlite" par "postgresql" (voir README).
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  name               String?
+  passwordHash       String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Abonnement
+  plan               String    @default("free") // free | monthly | quarterly | yearly | pass7
+  stripeCustomerId   String?   @unique
+  subscriptionId     String?   @unique
+  subscriptionStatus String?   // active | trialing | past_due | canceled ...
+  cancelAtPeriodEnd  Boolean   @default(false)
+  premiumUntil       DateTime?
+
+  resumes            Resume[]
+  letters            Letter[]
+  aiUsages           AiUsage[]
+  payments           Payment[]
+}
+
+model Resume {
+  id         String   @id @default(cuid())
+  userId     String
+  title      String   @default("Mon CV")
+  template   String   @default("horizon")
+  data       String   // JSON
+  publicSlug String?  @unique
+  isPublic   Boolean  @default(false)
+  views      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Letter {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String   @default("Lettre de motivation")
+  template  String   @default("classique")
+  data      String   // JSON
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AiUsage {
+  id     String @id @default(cuid())
+  userId String
+  day    String // AAAA-MM-JJ
+  count  Int    @default(0)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day])
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  userId    String?
+  stripeId  String   @unique
+  amount    Int      // en centimes
+  currency  String   @default("eur")
+  plan      String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
