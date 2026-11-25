@@ -6,6 +6,9 @@ export const SITE = {
   url: (process.env.NEXT_PUBLIC_SITE_URL ||
     (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000")).replace(/\/$/, ""),
   supportEmail: "support@cv-express.fr",
+  // Moyens de paiement proposés. PayPal uniquement par défaut ;
+  // mettez ENABLE_STRIPE="true" chez l'hébergeur pour réactiver la carte via Stripe.
+  stripeEnabled: process.env.ENABLE_STRIPE === "true",
   // Informations légales (à compléter avant la mise en ligne)
   legal: {
     company: "[Nom ou raison sociale]",

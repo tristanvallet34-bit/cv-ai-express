@@ -7,6 +7,7 @@ import { aiEnabled } from "@/lib/ai";
 import { stripeStatus, demoMode } from "@/lib/stripe";
 import { paypalStatus } from "@/lib/paypal";
 import Link from "next/link";
+import { SITE } from "@/lib/config";
 
 export const metadata: Metadata = { title: "Administration", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -58,11 +59,11 @@ export default async function AdminPage() {
       <div className="container" style={{ padding: "40px 20px 70px" }}>
         <h1 style={{ fontSize: "2rem" }}>Tableau de bord</h1>
         <div className="alert alert-info" style={{ fontSize: ".88rem" }}>
-          Stripe : {st.connected ? `✅ connecté (${st.mode === "live" ? "mode réel" : "mode test"})` : demo ? "⚠ mode démo (aucun paiement réel)" : "❌ non connecté"} · Webhook : {st.webhook === "ok" ? "✅" : "❌"} · IA Claude : {aiEnabled() ? "✅" : "❌ (générateur local)"} · Emails : {process.env.RESEND_API_KEY ? "✅" : "❌"}{" "}
+          {SITE.stripeEnabled && <>Stripe : {st.connected ? `✅ connecté (${st.mode === "live" ? "mode réel" : "mode test"})` : demo ? "⚠ mode démo" : "❌ non connecté"} · </>}IA Claude : {aiEnabled() ? "✅" : "❌ (générateur local)"} · Emails : {process.env.RESEND_API_KEY ? "✅" : "❌"}{" "}
           · PayPal : {pp.connected ? `✅ connecté (${pp.mode === "live" ? "réel" : "sandbox"})` : "❌ non connecté"}
           <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-            <Link href="/admin/stripe" className="btn btn-primary btn-sm">{st.connected ? "Gérer Stripe" : "Connecter Stripe →"}</Link>
-            <Link href="/admin/paypal" className="btn btn-outline btn-sm">{pp.connected ? "Gérer PayPal" : "Connecter PayPal →"}</Link>
+            <Link href="/admin/paypal" className="btn btn-primary btn-sm">{pp.connected ? "Gérer PayPal" : "Connecter PayPal →"}</Link>
+            {SITE.stripeEnabled && <Link href="/admin/stripe" className="btn btn-outline btn-sm">{st.connected ? "Gérer Stripe" : "Connecter Stripe →"}</Link>}
           </div>
         </div>
         <div className="grid grid-4" style={{ marginBottom: 30 }}>

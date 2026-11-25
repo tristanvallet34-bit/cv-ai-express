@@ -1,6 +1,7 @@
 import "server-only";
 import Stripe from "stripe";
 import { getSetting, setSettings } from "./settings";
+import { SITE } from "./config";
 
 // La clé Stripe peut venir des variables d'environnement (prioritaires)
 // ou de la connexion faite depuis /admin/stripe (stockée chiffrée en base).
@@ -8,6 +9,7 @@ import { getSetting, setSettings } from "./settings";
 let cached: { key: string; client: Stripe } | null = null;
 
 export async function stripeSecretKey() {
+  if (!SITE.stripeEnabled) return null;
   return process.env.STRIPE_SECRET_KEY || (await getSetting("stripe.secretKey"));
 }
 
@@ -27,7 +29,8 @@ export async function portalConfigId() {
 }
 
 export async function demoMode() {
-  return !(await stripeSecretKey()) && process.env.DEMO_MODE === "true";
+  // Mode démo (développement uniquement) : active Premium sans paiement
+  return process.env.NODE_ENV !== "production" && process.env.DEMO_MODE === "true" && !(await stripeSecretKey());
 }
 
 export const WEBHOOK_EVENTS: Stripe.WebhookEndpointCreateParams.EnabledEvent[] = [

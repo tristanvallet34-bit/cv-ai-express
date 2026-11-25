@@ -15,7 +15,7 @@ export default async function Page() {
       <div className="container narrow" style={{ padding: "40px 20px 70px" }}>
         <a href="/admin" className="muted">← Tableau de bord</a>
         <h1 style={{ fontSize: "2rem", marginTop: 10 }}>Encaisser avec PayPal</h1>
-        <p className="muted">PayPal fonctionne à côté de Stripe : vos clients choisissent « Carte bancaire » ou « PayPal » au moment de payer. Pass 7 jours et abonnements sont pris en charge, et l&apos;argent arrive sur votre compte PayPal.</p>
+        <p className="muted">PayPal est le moyen de paiement du site : vos clients paient avec leur compte PayPal ou par carte bancaire via PayPal. Pass 7 jours et abonnements sont pris en charge, et l&apos;argent arrive sur votre compte PayPal.</p>
         <PaypalConnect initial={await paypalStatus()} envManaged={!!process.env.PAYPAL_CLIENT_ID} />
       </div>
     </div>

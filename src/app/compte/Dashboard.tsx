@@ -177,7 +177,7 @@ export default function Dashboard({ user, resumes, letters, ai, flash, demo, pro
               {user.premium ? (
                 <>
                   <p>
-                    <span className="badge badge-gold">★ Premium actif</span> {plan && <strong style={{ color: "var(--ink)" }}>{plan.name}</strong>} {provider && <span className="muted" style={{ fontSize: ".85rem" }}>· payé via {provider === "paypal" ? "PayPal" : "carte (Stripe)"}</span>}
+                    <span className="badge badge-gold">★ Premium actif</span> {plan && <strong style={{ color: "var(--ink)" }}>{plan.name}</strong>} {provider && <span className="muted" style={{ fontSize: ".85rem" }}>· payé via {provider === "paypal" ? "PayPal" : "carte bancaire"}</span>}
                   </p>
                   {user.premiumUntil && (user.plan === "pass7" || user.subscriptionStatus === "canceled") && <p className="muted">Accès jusqu&apos;au {fmt(user.premiumUntil)} (sans renouvellement).</p>}
                   {user.cancelAtPeriodEnd && <p className="muted">Résiliation programmée à la fin de la période en cours.</p>}
